@@ -7,9 +7,10 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from app.core.config import settings
 from app.core.database import Base
 
-# noqa: F401 — import models so Alembic detects them
-import app.models.asset_snapshot  # noqa: F401
-import app.models.portfolio        # noqa: F401
+# noqa: F401 — Alembic이 모델을 감지하도록 임포트
+import app.models.portfolio              # noqa: F401
+import app.models.position_snapshot      # noqa: F401
+import app.models.account_daily_summary  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:
