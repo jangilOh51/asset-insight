@@ -1,11 +1,18 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: ["./pages/**/*.{js,ts,jsx,tsx,mdx}", "./components/**/*.{js,ts,jsx,tsx,mdx}"],
+  darkMode: 'class',
+  content: [
+    './pages/**/*.{js,ts,jsx,tsx}',
+    './components/**/*.{js,ts,jsx,tsx}',
+  ],
   theme: {
     extend: {
       colors: {
-        profit: "#16a34a",
-        loss: "#dc2626",
+        profit: '#ef4444',      // 한국 관례: 상승=빨강
+        loss: '#3b82f6',        // 하락=파랑
+        surface: '#1a2332',
+        card: '#1e2d3e',
+        border: '#2a3f55',
       },
     },
   },

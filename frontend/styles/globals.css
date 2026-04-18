@@ -1,3 +1,19 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+html, body {
+  background-color: #111827;
+  color: #f9fafb;
+  font-family: 'Pretendard', -apple-system, sans-serif;
+}
+
+/* 수익: 빨강, 손실: 파랑 (한국 증권 관례) */
+.text-profit { color: #ef4444; }
+.text-loss   { color: #60a5fa; }
+.text-neutral { color: #9ca3af; }
+
+/* 스크롤바 */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #1a2332; }
+::-webkit-scrollbar-thumb { background: #2a3f55; border-radius: 3px; }
