@@ -1,0 +1,8 @@
+from fastapi import APIRouter
+
+from app.api.v1.endpoints.realtime import router as realtime_router
+from app.api.v1.endpoints.trend import router as trend_router
+
+api_router = APIRouter(prefix="/api/v1")
+api_router.include_router(trend_router)
+api_router.include_router(realtime_router)
