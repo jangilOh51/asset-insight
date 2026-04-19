@@ -4,7 +4,7 @@ from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import Date, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -77,7 +77,7 @@ async def get_positions(
         select(PositionSnapshot)
         .where(
             PositionSnapshot.account_no == account_no,
-            PositionSnapshot.time.cast("date") == target_date,
+            PositionSnapshot.time.cast(Date) == target_date,
         )
         .order_by(PositionSnapshot.eval_amount_krw.desc())
     )

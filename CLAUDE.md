@@ -296,6 +296,13 @@ docker compose up -d postgres redis
 - 에러: `HTTPException` + 커스텀 에러 코드
 - 환경변수: `.env` 파일만 사용, 코드 하드코딩 금지
 - DB: Alembic 마이그레이션 필수, raw SQL f-string 금지
+- **단위 테스트 (필수 규칙)**:
+  - 모든 API 엔드포인트에 최소 1개 이상의 단위 테스트 작성 (`backend/tests/`)
+  - 외부 의존성(DB, Redis, KIS/키움 API)은 반드시 Mock으로 대체
+  - 새 엔드포인트 추가 시 → `test_{파일명}.py` 동시 커밋 필수
+  - 기존 엔드포인트 변경 시 → 해당 테스트 파일도 함께 수정
+  - 실행: `docker compose exec backend python -m pytest tests/ -v`
+  - 테스트 없는 PR은 리뷰 거부
 
 ### 프론트엔드 (→ `docs/roles/frontend-developer.md` 상세)
 - TypeScript strict mode, `any` 타입 금지

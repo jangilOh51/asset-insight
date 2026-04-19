@@ -265,12 +265,72 @@ await redis.set("kis_token", token, ex=86100)   # 토큰: 23시간 55분
 
 ---
 
+## 단위 테스트 규칙 (필수)
+
+> **API 엔드포인트 추가·변경 시 반드시 테스트 코드를 함께 커밋해야 한다.**  
+> 테스트 없는 PR은 리뷰 거부 대상이다.
+
+### 테스트 파일 위치
+
+```
+backend/tests/
+├── conftest.py              # 공통 픽스처 (mock DB, TestClient)
+├── test_accounts.py         # /api/v1/accounts/*
+├── test_portfolio.py        # /api/v1/portfolio/*
+├── test_snapshot.py         # /api/v1/snapshot/*
+├── test_trend.py            # /api/v1/trend/*
+└── test_realtime.py         # /api/v1/realtime/*
+```
+
+새 엔드포인트 파일 추가 시 → `test_{엔드포인트명}.py` 동시 생성 필수.
+
+### 최소 테스트 요건
+
+| 상황 | 최소 테스트 |
+|------|------------|
+| 새 엔드포인트 추가 | 정상 응답 1개 + 에러 케이스 1개 이상 |
+| 기존 엔드포인트 수정 | 변경 사항을 검증하는 테스트 추가 또는 수정 |
+| 버그 수정 | 해당 버그를 재현하는 회귀 테스트 추가 |
+
+### 외부 의존성 Mock 원칙
+
+```python
+# ✅ 모든 외부 의존성은 Mock으로 대체
+# DB → conftest.py의 mock_db 픽스처 사용
+# Redis, KIS API, 키움 API → unittest.mock.patch 사용
+
+@pytest.mark.asyncio
+async def test_get_portfolio(client, mock_db):
+    with patch("app.api.v1.endpoints.portfolio.get_usd_krw",
+               new_callable=AsyncMock, return_value=1350.0):
+        resp = await client.get("/api/v1/portfolio/realtime")
+    assert resp.status_code == 200
+
+# ❌ 실제 DB/Redis/외부 API 호출 금지 (테스트 환경 외부 의존성)
+```
+
+### 테스트 실행 방법
+
+```bash
+# Docker 컨테이너 내에서 (의존성 설치 후)
+docker compose exec backend python -m pytest tests/ -v
+
+# 특정 파일만
+docker compose exec backend python -m pytest tests/test_accounts.py -v
+
+# 커버리지 포함
+docker compose exec backend python -m pytest tests/ --cov=app --cov-report=term-missing
+```
+
+---
+
 ## 완료 기준 (Definition of Done)
 
 - [ ] 모든 함수에 타입 힌트 완비
 - [ ] `uv run ruff check .` 통과
 - [ ] `uv run mypy .` 통과 (에러 0)
-- [ ] 단위 테스트 커버리지 80% 이상
+- [ ] **추가·변경된 엔드포인트에 단위 테스트 포함 (최소 1개/엔드포인트)**
+- [ ] **`pytest tests/ -v` 전체 통과 확인 후 커밋**
 - [ ] API 응답 스키마 Pydantic 모델로 문서화
 - [ ] 새 환경변수는 `.env.example`에 추가
 - [ ] DB 스키마 변경 시 Alembic 마이그레이션 포함
