@@ -19,6 +19,7 @@ class DomesticPosition:
     eval_amount_krw: float
     profit_loss_krw: float
     return_pct: float
+    day_change_pct: float = 0.0   # 전일대비 등락률 (prdy_ctrt)
 
 
 @dataclass
@@ -85,6 +86,7 @@ async def get_domestic_balance() -> DomesticSummary:
             eval_amount_krw=_parse_float(item.get("evlu_amt")),
             profit_loss_krw=_parse_float(item.get("evlu_pfls_amt")),
             return_pct=_parse_float(item.get("evlu_pfls_rt")),
+            day_change_pct=_parse_float(item.get("prdy_ctrt")),
         ))
 
     # output2는 단일 객체 또는 리스트

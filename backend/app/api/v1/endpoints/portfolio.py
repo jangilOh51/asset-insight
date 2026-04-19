@@ -79,7 +79,7 @@ def _merge_summaries(summaries: list[UnifiedSummary], usd_krw: float) -> Portfol
             purchase_amount_krw=p.purchase_amount_krw,
             eval_amount_krw=p.eval_amount_krw,
             profit_loss_krw=p.profit_loss_krw,
-            return_pct=p.return_pct, weight_pct=weight,
+            return_pct=p.return_pct, day_change_pct=p.day_change_pct, weight_pct=weight,
         ))
 
     summary = PortfolioSummary(
@@ -113,7 +113,8 @@ async def _legacy_realtime(usd_krw: float) -> PortfolioRealtimeResponse:
             quantity=p.quantity, avg_cost=p.avg_cost, current_price=p.current_price,
             avg_cost_native=p.avg_cost, current_price_native=p.current_price,
             purchase_amount_krw=p.purchase_amount_krw, eval_amount_krw=p.eval_amount_krw,
-            profit_loss_krw=p.profit_loss_krw, return_pct=p.return_pct, weight_pct=0.0,
+            profit_loss_krw=p.profit_loss_krw, return_pct=p.return_pct,
+            day_change_pct=p.day_change_pct, weight_pct=0.0,
         ))
     for os_s in overseas_list:
         for p in os_s.positions:
@@ -125,7 +126,7 @@ async def _legacy_realtime(usd_krw: float) -> PortfolioRealtimeResponse:
                 purchase_amount_krw=round(p.purchase_amount_foreign * usd_krw),
                 eval_amount_krw=round(p.eval_amount_foreign * usd_krw),
                 profit_loss_krw=round(p.profit_loss_foreign * usd_krw),
-                return_pct=p.return_pct, weight_pct=0.0,
+                return_pct=p.return_pct, day_change_pct=p.day_change_pct, weight_pct=0.0,
             ))
 
     overseas_eval = sum(round(p.eval_amount_foreign * usd_krw) for os in overseas_list for p in os.positions)

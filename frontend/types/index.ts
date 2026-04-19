@@ -52,6 +52,7 @@ export interface HoldingItem {
   eval_amount_krw: number;
   profit_loss_krw: number;
   return_pct: number;
+  day_change_pct: number;
   weight_pct: number;
 }
 

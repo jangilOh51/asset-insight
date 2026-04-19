@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { HoldingItem } from '@/types';
 
 type Tab = '전체' | '국내' | '해외';
-type SortKey = 'eval_amount_krw' | 'return_pct' | 'weight_pct';
+type SortKey = 'eval_amount_krw' | 'day_change_pct' | 'weight_pct';
 
 const EXCHANGE_COLORS: Record<string, string> = {
   KR:   '#1A56DB',
@@ -13,10 +13,10 @@ const EXCHANGE_COLORS: Record<string, string> = {
 
 const SORT_LABELS: Record<SortKey, string> = {
   eval_amount_krw: '평가금액순',
-  return_pct:      '수익률순',
+  day_change_pct:  '등락률순',
   weight_pct:      '비중순',
 };
-const SORT_KEYS: SortKey[] = ['eval_amount_krw', 'return_pct', 'weight_pct'];
+const SORT_KEYS: SortKey[] = ['eval_amount_krw', 'day_change_pct', 'weight_pct'];
 
 function SkeletonRow() {
   return (
@@ -35,7 +35,7 @@ function SkeletonRow() {
 }
 
 function HoldingRow({ h }: { h: HoldingItem }) {
-  const isProfit = h.return_pct >= 0;
+  const isDayUp  = h.day_change_pct >= 0;
   const color    = EXCHANGE_COLORS[h.exchange] ?? '#525252';
 
   const priceLabel =
@@ -44,6 +44,7 @@ function HoldingRow({ h }: { h: HoldingItem }) {
       : `$${h.current_price_native.toFixed(2)}`;
 
   const profitAbs = Math.abs(h.profit_loss_krw);
+  const isProfit = h.profit_loss_krw >= 0;
   const profitLabel =
     profitAbs >= 10_000
       ? `${isProfit ? '+' : '-'}₩${Math.round(profitAbs / 10_000).toLocaleString()}만`
@@ -82,7 +83,7 @@ function HoldingRow({ h }: { h: HoldingItem }) {
         </div>
       </div>
 
-      {/* Price + return */}
+      {/* Price + 당일 등락률 */}
       <div style={{ textAlign: 'right', flexShrink: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: '#F9FAFB', fontFamily: 'JetBrains Mono, monospace' }}>
           {priceLabel}
@@ -90,9 +91,9 @@ function HoldingRow({ h }: { h: HoldingItem }) {
         <div style={{
           fontSize: 11, marginTop: 2,
           fontFamily: 'JetBrains Mono, monospace',
-          color: isProfit ? '#EF4444' : '#60A5FA',
+          color: isDayUp ? '#EF4444' : '#60A5FA',
         }}>
-          {isProfit ? '+' : ''}{h.return_pct.toFixed(2)}%
+          {isDayUp ? '+' : ''}{h.day_change_pct.toFixed(2)}%
         </div>
       </div>
 

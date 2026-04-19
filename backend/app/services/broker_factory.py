@@ -27,6 +27,7 @@ class UnifiedPosition:
     eval_amount_krw: float
     profit_loss_krw: float
     return_pct: float
+    day_change_pct: float = 0.0   # 전일대비 등락률
     weight_pct: float = 0.0
 
 
@@ -102,6 +103,7 @@ async def _fetch_kis(account: BrokerAccount, usd_krw: float) -> UnifiedSummary:
             eval_amount_krw=p.eval_amount_krw,
             profit_loss_krw=p.profit_loss_krw,
             return_pct=p.return_pct,
+            day_change_pct=p.day_change_pct,
         ))
 
     for os_summary in overseas_list:
@@ -121,6 +123,7 @@ async def _fetch_kis(account: BrokerAccount, usd_krw: float) -> UnifiedSummary:
                 eval_amount_krw=eval_krw,
                 profit_loss_krw=pnl_krw,
                 return_pct=p.return_pct,
+                day_change_pct=p.day_change_pct,
             ))
 
     overseas_eval_krw = sum(

@@ -29,7 +29,7 @@ function holdingsToItems(holdings: HoldingItem[]): FlatItem[] {
     .map(h => ({
       name: h.name.length > 12 ? h.name.slice(0, 11) + '…' : h.name,
       size: h.eval_amount_krw,
-      change: h.return_pct,
+      change: h.day_change_pct,
       currency: h.currency,
     }))
     .sort((a, b) => b.size - a.size)

@@ -20,6 +20,7 @@ class HoldingItem(BaseModel):
     eval_amount_krw: float
     profit_loss_krw: float
     return_pct: float
+    day_change_pct: float = 0.0
     weight_pct: float
 
 

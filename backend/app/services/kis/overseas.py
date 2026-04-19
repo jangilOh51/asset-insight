@@ -31,6 +31,7 @@ class OverseasPosition:
     eval_amount_foreign: float       # 평가금액 (외화)
     profit_loss_foreign: float       # 평가손익 (외화)
     return_pct: float
+    day_change_pct: float = 0.0      # 전일대비 등락률 (prdy_ctrt)
 
 
 @dataclass
@@ -86,6 +87,7 @@ async def get_overseas_balance(exchange: str = "NASD") -> OverseasSummary:
             eval_amount_foreign=_parse_float(item.get("ovrs_stck_evlu_amt")),
             profit_loss_foreign=_parse_float(item.get("frcr_evlu_pfls_amt")),
             return_pct=_parse_float(item.get("evlu_pfls_rt")),
+            day_change_pct=_parse_float(item.get("prdy_ctrt")),
         ))
 
     return OverseasSummary(exchange_code=exchange, currency=currency, positions=positions)
