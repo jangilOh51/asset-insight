@@ -3,115 +3,139 @@
 import asyncio
 from datetime import datetime, timezone
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.schemas.portfolio import (
-    HoldingItem,
-    PortfolioRealtimeResponse,
-    PortfolioSummary,
-)
-from app.services.kis.domestic import get_domestic_balance
+from app.core.database import get_db
+from app.models.broker_account import BrokerAccount
+from app.schemas.portfolio import HoldingItem, PortfolioRealtimeResponse, PortfolioSummary
+from app.services.broker_factory import UnifiedSummary, fetch_account_balance
 from app.services.kis.exchange_rate import get_usd_krw
-from app.services.kis.overseas import get_all_overseas_balances
 
 router = APIRouter(prefix="/portfolio", tags=["portfolio"])
 
 
 @router.get("/realtime", response_model=PortfolioRealtimeResponse)
-async def get_portfolio_realtime():
-    """국내 + 해외 잔고를 동시 조회해 KRW 통합 포트폴리오를 반환합니다."""
-    domestic, overseas_list, usd_krw = await asyncio.gather(
-        get_domestic_balance(),
-        get_all_overseas_balances(),
-        get_usd_krw(),
+async def get_portfolio_realtime(
+    account_id: str | None = Query(default=None, description="특정 계좌 ID. 없으면 전체 활성 계좌 합산"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    실시간 포트폴리오 조회.
+    - account_id 없음: 모든 활성 계좌 합산
+    - account_id 있음: 해당 계좌만 조회
+    - DB 계좌 없음: 환경변수 KIS 설정으로 fallback
+    """
+    usd_krw = await get_usd_krw()
+
+    stmt = select(BrokerAccount).where(BrokerAccount.is_active == True)
+    if account_id:
+        stmt = stmt.where(BrokerAccount.id == account_id)
+    result = await db.execute(stmt.order_by(BrokerAccount.display_order))
+    accounts = result.scalars().all()
+
+    if not accounts:
+        return await _legacy_realtime(usd_krw)
+
+    summaries: list[UnifiedSummary] = await asyncio.gather(
+        *[fetch_account_balance(acc, usd_krw) for acc in accounts]
     )
+    return _merge_summaries(summaries, usd_krw)
+
+
+def _merge_summaries(summaries: list[UnifiedSummary], usd_krw: float) -> PortfolioRealtimeResponse:
+    all_positions = []
+    total_purchase = total_eval = total_pnl = total_cash = 0.0
+
+    for s in summaries:
+        all_positions.extend(s.positions)
+        total_purchase += s.purchase_amount_krw
+        total_eval += s.eval_amount_krw
+        total_pnl += s.profit_loss_krw
+        total_cash += s.cash_krw
+
+    total_asset = total_eval + total_cash
+    return_pct = round(total_pnl / total_purchase * 100, 4) if total_purchase > 0 else 0.0
 
     holdings: list[HoldingItem] = []
-
-    # 국내 종목
-    for p in domestic.positions:
+    for p in all_positions:
+        weight = round(p.eval_amount_krw / total_asset * 100, 2) if total_asset > 0 else 0.0
         holdings.append(HoldingItem(
-            symbol=p.symbol,
-            name=p.name,
-            market="KR",
-            exchange="KR",
-            currency="KRW",
+            symbol=p.symbol, name=p.name,
+            market=p.market, exchange=p.exchange, currency=p.currency,
             quantity=p.quantity,
-            avg_cost=p.avg_cost,
-            current_price=p.current_price,
-            avg_cost_native=p.avg_cost,
-            current_price_native=p.current_price,
+            avg_cost=p.avg_cost, current_price=p.current_price,
+            avg_cost_native=p.avg_cost_native, current_price_native=p.current_price_native,
             purchase_amount_krw=p.purchase_amount_krw,
             eval_amount_krw=p.eval_amount_krw,
             profit_loss_krw=p.profit_loss_krw,
-            return_pct=p.return_pct,
-            weight_pct=0.0,
+            return_pct=p.return_pct, weight_pct=weight,
         ))
-
-    # 해외 종목 (외화 → KRW 환산)
-    for os_summary in overseas_list:
-        for p in os_summary.positions:
-            purchase_krw = round(p.purchase_amount_foreign * usd_krw)
-            eval_krw = round(p.eval_amount_foreign * usd_krw)
-            pnl_krw = round(p.profit_loss_foreign * usd_krw)
-            holdings.append(HoldingItem(
-                symbol=p.symbol,
-                name=p.name,
-                market="US",
-                exchange=p.exchange_code,
-                currency="USD",
-                quantity=p.quantity,
-                avg_cost=round(p.avg_cost * usd_krw),
-                current_price=round(p.current_price * usd_krw),
-                avg_cost_native=p.avg_cost,
-                current_price_native=p.current_price,
-                purchase_amount_krw=purchase_krw,
-                eval_amount_krw=eval_krw,
-                profit_loss_krw=pnl_krw,
-                return_pct=p.return_pct,
-                weight_pct=0.0,
-            ))
-
-    # 비중 계산 (현금 포함 총 자산 기준)
-    overseas_eval_krw = sum(
-        round(p.eval_amount_foreign * usd_krw)
-        for os in overseas_list
-        for p in os.positions
-    )
-    total_asset_krw = domestic.total_asset_krw + overseas_eval_krw
-    if total_asset_krw > 0:
-        for h in holdings:
-            h.weight_pct = round(h.eval_amount_krw / total_asset_krw * 100, 2)
-
-    # 합산 요약
-    overseas_purchase_krw = sum(
-        round(p.purchase_amount_foreign * usd_krw)
-        for os in overseas_list
-        for p in os.positions
-    )
-    overseas_pnl_krw = sum(
-        round(p.profit_loss_foreign * usd_krw)
-        for os in overseas_list
-        for p in os.positions
-    )
-
-    total_purchase = domestic.purchase_amount_krw + overseas_purchase_krw
-    total_eval = domestic.eval_amount_krw + overseas_eval_krw
-    total_pnl = domestic.profit_loss_krw + overseas_pnl_krw
-    return_pct = round(total_pnl / total_purchase * 100, 4) if total_purchase > 0 else 0.0
 
     summary = PortfolioSummary(
         purchase_amount_krw=round(total_purchase),
         eval_amount_krw=round(total_eval),
         profit_loss_krw=round(total_pnl),
         return_pct=return_pct,
-        cash_krw=round(domestic.cash_krw),
-        total_asset_krw=round(total_asset_krw),
+        cash_krw=round(total_cash),
+        total_asset_krw=round(total_asset),
+    )
+    return PortfolioRealtimeResponse(
+        summary=summary, holdings=holdings,
+        usd_krw=usd_krw,
+        fetched_at=datetime.now(timezone.utc).isoformat(),
     )
 
+
+async def _legacy_realtime(usd_krw: float) -> PortfolioRealtimeResponse:
+    """DB 계좌 미등록 시 환경변수 KIS 설정으로 조회 (하위 호환)."""
+    from app.services.kis.domestic import get_domestic_balance
+    from app.services.kis.overseas import get_all_overseas_balances
+
+    domestic, overseas_list = await asyncio.gather(
+        get_domestic_balance(), get_all_overseas_balances(),
+    )
+
+    holdings: list[HoldingItem] = []
+    for p in domestic.positions:
+        holdings.append(HoldingItem(
+            symbol=p.symbol, name=p.name, market="KR", exchange="KR", currency="KRW",
+            quantity=p.quantity, avg_cost=p.avg_cost, current_price=p.current_price,
+            avg_cost_native=p.avg_cost, current_price_native=p.current_price,
+            purchase_amount_krw=p.purchase_amount_krw, eval_amount_krw=p.eval_amount_krw,
+            profit_loss_krw=p.profit_loss_krw, return_pct=p.return_pct, weight_pct=0.0,
+        ))
+    for os_s in overseas_list:
+        for p in os_s.positions:
+            holdings.append(HoldingItem(
+                symbol=p.symbol, name=p.name, market="US", exchange=p.exchange_code, currency="USD",
+                quantity=p.quantity,
+                avg_cost=round(p.avg_cost * usd_krw), current_price=round(p.current_price * usd_krw),
+                avg_cost_native=p.avg_cost, current_price_native=p.current_price,
+                purchase_amount_krw=round(p.purchase_amount_foreign * usd_krw),
+                eval_amount_krw=round(p.eval_amount_foreign * usd_krw),
+                profit_loss_krw=round(p.profit_loss_foreign * usd_krw),
+                return_pct=p.return_pct, weight_pct=0.0,
+            ))
+
+    overseas_eval = sum(round(p.eval_amount_foreign * usd_krw) for os in overseas_list for p in os.positions)
+    total_asset = domestic.total_asset_krw + overseas_eval
+    if total_asset > 0:
+        for h in holdings:
+            h.weight_pct = round(h.eval_amount_krw / total_asset * 100, 2)
+
+    total_pur = domestic.purchase_amount_krw + sum(round(p.purchase_amount_foreign * usd_krw) for os in overseas_list for p in os.positions)
+    total_pnl = domestic.profit_loss_krw + sum(round(p.profit_loss_foreign * usd_krw) for os in overseas_list for p in os.positions)
+    return_pct = round(total_pnl / total_pur * 100, 4) if total_pur > 0 else 0.0
+
     return PortfolioRealtimeResponse(
-        summary=summary,
-        holdings=holdings,
-        usd_krw=usd_krw,
+        summary=PortfolioSummary(
+            purchase_amount_krw=round(total_pur),
+            eval_amount_krw=round(domestic.eval_amount_krw + overseas_eval),
+            profit_loss_krw=round(total_pnl), return_pct=return_pct,
+            cash_krw=round(domestic.cash_krw), total_asset_krw=round(total_asset),
+        ),
+        holdings=holdings, usd_krw=usd_krw,
         fetched_at=datetime.now(timezone.utc).isoformat(),
     )
