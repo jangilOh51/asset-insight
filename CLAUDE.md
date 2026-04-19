@@ -25,6 +25,34 @@ PM은 모든 역할의 결과물을 검토한 후 최종 완료를 선언한다.
 
 ---
 
+### 화면 요구사항 문서 활용 프로세스
+
+`docs/screens/` 폴더에 화면별 요구사항 문서가 있다.  
+**화면 개발 또는 개선 요청이 오면 반드시 아래 순서를 따른다.**
+
+```
+1. docs/screens/screen-0N-{화면명}.md 파일을 읽어 현재 요구사항 파악
+2. 사용자 요청과 기존 요구사항의 GAP 분석
+3. 요구사항 문서를 먼저 업데이트 (변경/추가 사항 반영, last_updated·version 갱신)
+4. 업데이트된 요구사항 기준으로 구현 진행
+5. 구현 완료 후 "미구현/향후 개선" 체크박스 반영
+```
+
+> **규칙**: 나중에 말한 요구사항이 이전 것을 덮어쓴다. 이전 내용을 주석으로 남기지 말고 직접 교체한다.
+
+| 화면 | 요구사항 파일 |
+|------|--------------|
+| 포트폴리오 홈 (`/`) | `docs/screens/screen-01-dashboard.md` |
+| 포트폴리오 상세 (`/portfolio/[id]`) | `docs/screens/screen-02-portfolio-detail.md` |
+| 트렌드 분석 (`/trend`) | `docs/screens/screen-03-trend.md` |
+| 자산 히스토리 (`/history`) | `docs/screens/screen-04-history.md` |
+| 계좌 관리 (`/accounts`) | `docs/screens/screen-05-accounts.md` |
+| 사용 가이드 (`/guide`) | `docs/screens/screen-06-guide.md` |
+
+신규 화면 추가 시 → `screen-0N-{name}.md` 생성 + `docs/screens/README.md` 인덱스 업데이트
+
+---
+
 ### 작업 지시 수신 시 반드시 아래 순서를 따른다
 
 **Step 0 — PM 역할 선언 (모든 기능 작업 시)**
