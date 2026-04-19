@@ -1,5 +1,6 @@
 import useSWR from 'swr';
 import axios from 'axios';
+import { fmt } from '@/lib/format';
 import type { SnapshotSummary } from '@/types';
 
 interface Props {
@@ -7,12 +8,6 @@ interface Props {
 }
 
 const fetcher = (url: string) => axios.get(url).then(r => r.data);
-
-function fmt(n: number) {
-  if (n >= 100_000_000) return `${(n / 100_000_000).toFixed(1)}억`;
-  if (n >= 10_000)      return `${Math.round(n / 10_000)}만`;
-  return n.toLocaleString();
-}
 
 function toMonthlyBuckets(snapshots: SnapshotSummary[]): { date: string; value: number }[] {
   const byMonth = new Map<string, number>();
@@ -77,7 +72,7 @@ export default function AssetBarHistory({ accountNo }: Props) {
           return (
             <div
               key={i}
-              title={`₩${fmt(d.value)}`}
+              title={fmt(d.value)}
               style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}
             >
               <div

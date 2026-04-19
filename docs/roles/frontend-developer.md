@@ -105,19 +105,22 @@ export default function HoldingsList({ holdings, isLoading }: Props) {
 ### 금액 포맷 유틸
 
 ```typescript
-// ✅ 공통 포맷 함수 (중복 작성 금지)
-function fmt(n: number): string {
-  if (n >= 100_000_000) return `₩${(n / 100_000_000).toFixed(2)}억`;
-  if (n >= 10_000)      return `₩${Math.round(n / 10_000).toLocaleString()}만`;
-  return `₩${n.toLocaleString()}`;
-}
+// ✅ 반드시 @/lib/format 에서 import해서 사용 (컴포넌트 내 재정의 금지)
+import { fmt, fmtPct, fmtDate } from '@/lib/format';
 
-// ✅ 수익률 표시: 항상 부호 포함
-const returnLabel = `${isProfit ? '+' : ''}${returnPct.toFixed(2)}%`;
+// fmt() 반환 예시: ₩86,360,000  (만/억 단위 사용 금지 — 절대 변경 금지)
+// ❌ 금지: "8636만", "8.6억"
+// ✅ 올바름: "₩86,360,000"
 
-// ✅ 수익 색상
+// ✅ 수익률 표시
+const returnLabel = fmtPct(returnPct); // "+1.23%" 또는 "-0.45%"
+
+// ✅ 수익 색상 (한국 관례: 수익=빨강, 손실=파랑)
 const profitColor = isProfit ? '#EF4444' : '#60A5FA';
 ```
+
+> **규칙**: `fmt()` / `fmtPct()` / `fmtDate()` 는 `@/lib/format` 에서만 import한다.  
+> 컴포넌트 파일 내에 동일 기능 함수를 재정의하면 코드 리뷰에서 반려된다.
 
 ---
 

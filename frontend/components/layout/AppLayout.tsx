@@ -56,6 +56,16 @@ const navItems = [
       </svg>
     ),
   },
+  {
+    href: '/history',
+    label: '자산 히스토리',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <polyline points="12 6 12 12 16 14"/>
+      </svg>
+    ),
+  },
 ];
 
 interface TopBarProps {
@@ -152,8 +162,32 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           })}
         </nav>
 
-        {/* Settings */}
-        <div style={{ padding: 8, borderTop: '1px solid #1f2937' }}>
+        {/* Bottom Links */}
+        <div style={{ padding: 8, borderTop: '1px solid #1f2937', display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Link
+            href="/guide"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '9px 12px', borderRadius: 8, textDecoration: 'none',
+              color: '#9CA3AF', fontSize: 13,
+            }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLElement).style.background = '#1f2937';
+              (e.currentTarget as HTMLElement).style.color = '#fff';
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLElement).style.background = 'transparent';
+              (e.currentTarget as HTMLElement).style.color = '#9CA3AF';
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <span>사용 가이드</span>
+          </Link>
           <Link
             href="/settings"
             style={{

@@ -3,6 +3,7 @@ import useSWR from 'swr';
 import axios from 'axios';
 import AppLayout, { TopBar } from '@/components/layout/AppLayout';
 import PortfolioCard from '@/components/dashboard/PortfolioCard';
+import { fmt } from '@/lib/format';
 import type { AccountOut, PortfolioRealtimeResponse } from '@/types';
 
 const SectorTreemap = dynamic(
@@ -11,12 +12,6 @@ const SectorTreemap = dynamic(
 );
 
 const fetcher = (url: string) => axios.get(url).then(r => r.data);
-
-function fmt(n: number) {
-  if (n >= 100_000_000) return `₩${(n / 100_000_000).toFixed(2)}억`;
-  if (n >= 10_000)      return `₩${Math.round(n / 10_000).toLocaleString()}만`;
-  return `₩${n.toLocaleString()}`;
-}
 
 function Skeleton({ w = '100%', h = 20 }: { w?: number | string; h?: number }) {
   return (

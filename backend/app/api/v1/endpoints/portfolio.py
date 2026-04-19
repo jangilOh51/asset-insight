@@ -38,7 +38,8 @@ async def get_portfolio_realtime(
     result = await db.execute(stmt.order_by(BrokerAccount.display_order))
     accounts = result.scalars().all()
 
-    if not accounts:
+    # env-kis: 환경변수 계좌 (DB 미등록) — legacy 경로 사용
+    if not accounts or account_id == "env-kis":
         return await _legacy_realtime(usd_krw)
 
     summaries: list[UnifiedSummary] = await asyncio.gather(

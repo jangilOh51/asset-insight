@@ -3,6 +3,7 @@ import dynamic from 'next/dynamic';
 import useSWR from 'swr';
 import axios from 'axios';
 import AppLayout, { TopBar } from '@/components/layout/AppLayout';
+import { fmt, fmtPct } from '@/lib/format';
 import type { AccountOut, BenchmarkReturns, TrendPoint } from '@/types';
 
 const AssetTrendChart = dynamic(() => import('@/components/charts/AssetTrendChart'), {
@@ -24,17 +25,6 @@ const PERIOD_LIMITS: Record<Period, number> = {
   weekly: 52,
   monthly: 24,
 };
-
-function fmt(n: number) {
-  if (n >= 100_000_000) return `₩${(n / 100_000_000).toFixed(2)}억`;
-  if (n >= 10_000)      return `₩${Math.round(n / 10_000).toLocaleString()}만`;
-  return `₩${n.toLocaleString()}`;
-}
-
-function fmtPct(n: number, showSign = true) {
-  const sign = showSign && n > 0 ? '+' : '';
-  return `${sign}${n.toFixed(2)}%`;
-}
 
 function ReturnCell({ value }: { value: number | null }) {
   if (value === null) return <td style={tdStyle()}>—</td>;

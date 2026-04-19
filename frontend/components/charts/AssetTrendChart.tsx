@@ -8,6 +8,7 @@ import {
   Legend,
   ReferenceLine,
 } from "recharts";
+import { fmt } from "@/lib/format";
 import type { BenchmarkReturns, TrendPoint } from "@/types";
 
 interface Props {
