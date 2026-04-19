@@ -142,3 +142,66 @@ async def test_get_composition_empty(client):
 
     assert resp.status_code == 200
     assert resp.json() == []
+
+
+# ── GET /trend/benchmark/returns ─────────────────────────────────────────────
+
+MOCK_BENCHMARK = {
+    "KOSPI":  [{"date": "2026-01-02", "return_pct": 0.0}, {"date": "2026-04-19", "return_pct": 3.2}],
+    "SP500":  [{"date": "2026-01-02", "return_pct": 0.0}, {"date": "2026-04-19", "return_pct": 5.1}],
+    "NASDAQ": [{"date": "2026-01-02", "return_pct": 0.0}, {"date": "2026-04-19", "return_pct": 6.8}],
+}
+
+
+@pytest.mark.asyncio
+async def test_get_benchmark_returns(client):
+    with patch(
+        "app.api.v1.endpoints.trend.get_benchmark_returns",
+        new_callable=AsyncMock,
+        return_value=MOCK_BENCHMARK,
+    ) as mock_fn:
+        resp = await client.get("/api/v1/trend/benchmark/returns?from=2026-01-02")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "KOSPI" in data
+    assert "SP500" in data
+    assert "NASDAQ" in data
+    mock_fn.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_get_benchmark_missing_from(client):
+    resp = await client.get("/api/v1/trend/benchmark/returns")
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_get_benchmark_with_to_date(client):
+    with patch(
+        "app.api.v1.endpoints.trend.get_benchmark_returns",
+        new_callable=AsyncMock,
+        return_value=MOCK_BENCHMARK,
+    ) as mock_fn:
+        resp = await client.get(
+            "/api/v1/trend/benchmark/returns?from=2026-01-02&to=2026-04-19"
+        )
+
+    assert resp.status_code == 200
+    args, kwargs = mock_fn.call_args
+    assert args[0] == date(2026, 1, 2)
+    assert args[1] == date(2026, 4, 19)
+
+
+@pytest.mark.asyncio
+async def test_get_benchmark_returns_empty(client):
+    with patch(
+        "app.api.v1.endpoints.trend.get_benchmark_returns",
+        new_callable=AsyncMock,
+        return_value={"KOSPI": [], "SP500": [], "NASDAQ": []},
+    ):
+        resp = await client.get("/api/v1/trend/benchmark/returns?from=2026-01-02")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["KOSPI"] == []

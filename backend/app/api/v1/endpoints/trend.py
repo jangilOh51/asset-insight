@@ -8,11 +8,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.services.analysis.trend import get_asset_composition, get_asset_trend
+from app.services.market.benchmark import get_benchmark_returns
 
 router = APIRouter(prefix="/trend", tags=["trend"])
 
 BucketType = Literal["daily", "weekly", "monthly"]
 BUCKET_MAP = {"daily": "1 day", "weekly": "1 week", "monthly": "1 month"}
+
+
+@router.get("/benchmark/returns")
+async def read_benchmark(
+    from_date: Annotated[date, Query(alias="from")],
+    to_date: Annotated[date | None, Query(alias="to")] = None,
+):
+    """KOSPI / S&P500 / NASDAQ 수익률 (from_date 기준 정규화)."""
+    return await get_benchmark_returns(from_date, to_date)
 
 
 @router.get("/{account_id}")

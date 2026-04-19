@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { AccountOut, AssetComposition, PortfolioRealtimeResponse, SnapshotSummary, TrendPoint } from "@/types";
+import type { AccountOut, AssetComposition, BenchmarkReturns, PortfolioRealtimeResponse, SnapshotSummary, TrendPoint } from "@/types";
 
 const api = axios.create({ baseURL: "/api/v1" });
 
@@ -39,5 +39,12 @@ export async function fetchAccounts(): Promise<AccountOut[]> {
 
 export async function fetchSnapshotSummary(accountNo: string, limit = 180): Promise<SnapshotSummary[]> {
   const { data } = await api.get(`/snapshot/summary/${accountNo}`, { params: { limit } });
+  return data;
+}
+
+export async function fetchBenchmarkReturns(fromDate: string, toDate?: string): Promise<BenchmarkReturns> {
+  const { data } = await api.get("/trend/benchmark/returns", {
+    params: { from: fromDate, ...(toDate ? { to: toDate } : {}) },
+  });
   return data;
 }

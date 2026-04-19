@@ -94,3 +94,14 @@ export interface SnapshotSummary {
   total_asset_krw: number;
   position_count: number;
 }
+
+export interface BenchmarkPoint {
+  date: string;
+  return_pct: number;
+}
+
+export interface BenchmarkReturns {
+  KOSPI: BenchmarkPoint[];
+  SP500: BenchmarkPoint[];
+  NASDAQ: BenchmarkPoint[];
+}

@@ -3,7 +3,7 @@ import dynamic from 'next/dynamic';
 import useSWR from 'swr';
 import axios from 'axios';
 import AppLayout, { TopBar } from '@/components/layout/AppLayout';
-import type { AccountOut, TrendPoint } from '@/types';
+import type { AccountOut, BenchmarkReturns, TrendPoint } from '@/types';
 
 const AssetTrendChart = dynamic(() => import('@/components/charts/AssetTrendChart'), {
   ssr: false,
@@ -72,8 +72,20 @@ function computePeriodReturn(points: TrendPoint[], days: number): number | null 
   return ((last.total_value_krw - baseline.total_value_krw) / baseline.total_value_krw) * 100;
 }
 
+function computeBenchmarkReturn(series: { date: string; return_pct: number }[], days: number): number | null {
+  if (series.length < 2) return null;
+  const sorted = [...series].sort((a, b) => a.date.localeCompare(b.date));
+  const last = sorted[sorted.length - 1];
+  const cutoff = new Date(last.date);
+  cutoff.setDate(cutoff.getDate() - days);
+  const baseline = sorted.find(p => new Date(p.date) >= cutoff);
+  if (!baseline) return null;
+  return last.return_pct - baseline.return_pct;
+}
+
 export default function TrendPage() {
   const [period, setPeriod] = useState<Period>('daily');
+  const [showBenchmark, setShowBenchmark] = useState(true);
 
   const { data: accounts = [] } = useSWR<AccountOut[]>('/api/v1/accounts', fetcher);
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
@@ -87,6 +99,13 @@ export default function TrendPage() {
   );
 
   const sortedPoints = [...trendPoints].sort((a, b) => a.period.localeCompare(b.period));
+
+  // 첫 스냅샷 날짜 기준으로 벤치마크 조회
+  const fromDate = sortedPoints[0]?.period?.slice(0, 10);
+  const { data: benchmark } = useSWR<BenchmarkReturns>(
+    showBenchmark && fromDate ? `/api/v1/trend/benchmark/returns?from=${fromDate}` : null,
+    fetcher,
+  );
 
   const periodReturns: { label: string; days: number }[] = [
     { label: '1주일', days: 7 },
@@ -129,22 +148,38 @@ export default function TrendPage() {
             </p>
           )}
 
-          {/* 기간 탭 */}
-          <div style={{ display: 'flex', gap: 4, background: '#1A2332', border: '1px solid #2A3F55', borderRadius: 8, padding: 3 }}>
-            {(Object.keys(PERIOD_LABELS) as Period[]).map(p => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                style={{
-                  padding: '5px 14px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                  fontSize: 12, fontWeight: 500, transition: 'all 150ms',
-                  background: period === p ? '#06B6D4' : 'transparent',
-                  color: period === p ? '#fff' : '#9CA3AF',
-                }}
-              >
-                {PERIOD_LABELS[p]}
-              </button>
-            ))}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* 벤치마크 토글 */}
+            <button
+              onClick={() => setShowBenchmark(v => !v)}
+              style={{
+                fontSize: 11, padding: '5px 10px', borderRadius: 6, cursor: 'pointer',
+                background: showBenchmark ? 'rgba(6,182,212,0.12)' : 'transparent',
+                color: showBenchmark ? '#22D3EE' : '#6B7280',
+                border: `1px solid ${showBenchmark ? 'rgba(6,182,212,0.3)' : '#2A3F55'}`,
+                transition: 'all 150ms',
+              }}
+            >
+              지수 비교
+            </button>
+
+            {/* 기간 탭 */}
+            <div style={{ display: 'flex', gap: 4, background: '#1A2332', border: '1px solid #2A3F55', borderRadius: 8, padding: 3 }}>
+              {(Object.keys(PERIOD_LABELS) as Period[]).map(p => (
+                <button
+                  key={p}
+                  onClick={() => setPeriod(p)}
+                  style={{
+                    padding: '5px 14px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                    fontSize: 12, fontWeight: 500, transition: 'all 150ms',
+                    background: period === p ? '#06B6D4' : 'transparent',
+                    color: period === p ? '#fff' : '#9CA3AF',
+                  }}
+                >
+                  {PERIOD_LABELS[p]}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -175,7 +210,7 @@ export default function TrendPage() {
         {accountId && (
           <div style={{ background: '#1A2332', border: '1px solid #2A3F55', borderRadius: 12, padding: 20 }}>
             <p style={{ fontSize: 11, color: '#6B7280', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 16 }}>
-              자산 변화 추이
+              수익률 추이 {showBenchmark ? '(지수 비교)' : ''}
             </p>
             {isLoading ? (
               <Skeleton h={240}/>
@@ -185,7 +220,7 @@ export default function TrendPage() {
                 <p style={{ color: '#4B5563', fontSize: 12 }}>매일 18:00 스냅샷이 저장됩니다</p>
               </div>
             ) : (
-              <AssetTrendChart points={sortedPoints}/>
+              <AssetTrendChart points={sortedPoints} benchmark={benchmark} showBenchmark={showBenchmark}/>
             )}
           </div>
         )}
@@ -195,7 +230,7 @@ export default function TrendPage() {
           <div style={{ background: '#1A2332', border: '1px solid #2A3F55', borderRadius: 12, overflow: 'hidden' }}>
             <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(42,63,85,0.5)' }}>
               <p style={{ fontSize: 11, color: '#6B7280', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                기간별 수익률
+                기간별 수익률 비교
               </p>
             </div>
             <div style={{ overflowX: 'auto' }}>
@@ -210,13 +245,55 @@ export default function TrendPage() {
                 </thead>
                 <tbody>
                   <tr>
-                    <td style={{ ...tdStyle(), textAlign: 'left', color: '#F9FAFB', fontWeight: 500 }}>
-                      내 포트폴리오
+                    <td style={{ ...tdStyle(), textAlign: 'left' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#06B6D4', fontWeight: 500 }}>
+                        <span style={{ width: 12, height: 2, background: '#06B6D4', display: 'inline-block', borderRadius: 1 }}/>
+                        내 포트폴리오
+                      </span>
                     </td>
                     {periodReturns.map(p => (
                       <ReturnCell key={p.label} value={computePeriodReturn(sortedPoints, p.days)}/>
                     ))}
                   </tr>
+                  {showBenchmark && benchmark && benchmark.KOSPI.length > 0 && (
+                    <tr>
+                      <td style={{ ...tdStyle(), textAlign: 'left' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#F59E0B' }}>
+                          <span style={{ width: 12, height: 2, background: '#F59E0B', display: 'inline-block', borderRadius: 1 }}/>
+                          KOSPI
+                        </span>
+                      </td>
+                      {periodReturns.map(p => (
+                        <ReturnCell key={p.label} value={computeBenchmarkReturn(benchmark.KOSPI, p.days)}/>
+                      ))}
+                    </tr>
+                  )}
+                  {showBenchmark && benchmark && benchmark.SP500.length > 0 && (
+                    <tr>
+                      <td style={{ ...tdStyle(), textAlign: 'left' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#10B981' }}>
+                          <span style={{ width: 12, height: 2, background: '#10B981', display: 'inline-block', borderRadius: 1 }}/>
+                          S&amp;P500
+                        </span>
+                      </td>
+                      {periodReturns.map(p => (
+                        <ReturnCell key={p.label} value={computeBenchmarkReturn(benchmark.SP500, p.days)}/>
+                      ))}
+                    </tr>
+                  )}
+                  {showBenchmark && benchmark && benchmark.NASDAQ.length > 0 && (
+                    <tr>
+                      <td style={{ ...tdStyle(), textAlign: 'left' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#8B5CF6' }}>
+                          <span style={{ width: 12, height: 2, background: '#8B5CF6', display: 'inline-block', borderRadius: 1 }}/>
+                          NASDAQ
+                        </span>
+                      </td>
+                      {periodReturns.map(p => (
+                        <ReturnCell key={p.label} value={computeBenchmarkReturn(benchmark.NASDAQ, p.days)}/>
+                      ))}
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
