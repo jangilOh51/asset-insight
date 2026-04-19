@@ -1,5 +1,75 @@
 # Asset Insight — 개인 자산관리 플랫폼
 
+---
+
+## ⚙️ Claude 작업 수행 방식 (필독)
+
+### 작업 지시 수신 시 반드시 아래 순서를 따른다
+
+**Step 1 — 역할 배정 선언**
+
+작업 지시를 받으면 구현에 앞서 다음 형식으로 역할 배정을 먼저 출력한다.
+
+```
+## 역할 배정
+
+| 역할 | 담당자 | 수행 업무 |
+|------|--------|-----------|
+| 기획자 | Claude/기획 | ... |
+| UX 디자이너 | Claude/디자인 | ... |
+| 백엔드 개발자 | Claude/백엔드 | ... |
+| 프론트 개발자 | Claude/프론트 | ... |
+| 코드 리뷰어 | Claude/리뷰 | ... |
+| QA | Claude/QA | ... |
+
+## 작업 순서
+1. [역할] 작업 내용
+2. [역할] 작업 내용
+...
+```
+
+해당 역할이 필요 없으면 표에서 생략한다.
+
+**Step 2 — 역할별 순서대로 작업 실행**
+
+배정된 순서에 따라 각 역할의 하네스 규칙을 적용하여 작업한다.  
+각 역할의 작업 시작 시 `### [역할명] 작업 시작` 헤딩을 출력하여 현재 어느 역할이 수행 중인지 명시한다.
+
+**Step 3 — 완료 보고**
+
+모든 역할의 작업이 끝나면 역할별 완료 항목과 다음 단계를 요약한다.
+
+---
+
+### 역할별 하네스 문서 위치
+
+상세 규칙은 `docs/roles/` 폴더를 참조한다.
+
+| 역할 | 문서 | 핵심 규칙 요약 |
+|------|------|---------------|
+| 기획자 | `docs/roles/planner.md` | 기능 명세 → AC 정의 → 범위 확정 |
+| UX 디자이너 | `docs/roles/ux-designer.md` | 디자인 토큰 준수, 5가지 UI 상태 설계 |
+| 백엔드 개발자 | `docs/roles/backend-developer.md` | async/Pydantic/KIS API 규칙 |
+| 프론트 개발자 | `docs/roles/frontend-developer.md` | TypeScript strict, 디자인 토큰, 5가지 상태 구현 |
+| 코드 리뷰어 | `docs/roles/code-reviewer.md` | MUST/SHOULD/NIT 태그, 금융 도메인 검토 |
+| QA | `docs/roles/quality-process.md` | 품질 게이트, 회귀 시나리오, 릴리즈 체크리스트 |
+
+---
+
+### 역할 판단 기준
+
+| 작업 유형 | 필요 역할 |
+|-----------|-----------|
+| 새 기능 추가 | 기획 → UX → 백엔드/프론트 → 리뷰 → QA |
+| UI 개선/버그 | UX → 프론트 → 리뷰 → QA |
+| API 추가/수정 | 백엔드 → 리뷰 → QA |
+| DB 스키마 변경 | 백엔드 → 리뷰 |
+| 문서 작성 | 기획 또는 해당 역할 |
+| 리팩터링 | 해당 역할 → 리뷰 |
+| 긴급 버그 수정 | 해당 역할 → 리뷰 (QA 간소화 가능) |
+
+---
+
 ## 프로젝트 개요
 
 개인 투자자를 위한 통합 자산관리 플랫폼. 국내/해외 증권 계좌를 실시간 조회하고, 매일 자산 스냅샷을 DB에 저장해 일/주/월 트렌드를 분석한다. 장기적으로 시장 분석, 투자 전략서 작성, 개별 종목 리포트 분석 기능까지 확장 예정.
@@ -204,11 +274,34 @@ docker compose up -d postgres redis
 
 ## 코딩 컨벤션
 
+### 공통
+- 커밋 메시지: `feat/fix/refactor/docs/chore: 한글 설명`
+- 브랜치: `feature/기능명`, `fix/버그명`
+- PR: 변경 이유 + 스크린샷(UI 변경 시) + 테스트 방법 기술 필수
+
+### 백엔드 (→ `docs/roles/backend-developer.md` 상세)
 - Python: ruff (lint + format), mypy (타입 체크)
-- 비동기: async/await 일관 사용 (asyncpg, httpx)
+- 비동기: async/await 일관 사용, 독립 호출은 `asyncio.gather` 병렬화
 - API 버전: `/api/v1/` 접두사 유지
-- 스키마: 요청/응답 Pydantic 모델 분리 (Request/Response suffix)
-- 에러: HTTPException + 커스텀 에러 코드
+- 스키마: 요청/응답 Pydantic 모델 분리 (`Request`/`Response` suffix)
+- 에러: `HTTPException` + 커스텀 에러 코드
+- 환경변수: `.env` 파일만 사용, 코드 하드코딩 금지
+- DB: Alembic 마이그레이션 필수, raw SQL f-string 금지
+
+### 프론트엔드 (→ `docs/roles/frontend-developer.md` 상세)
+- TypeScript strict mode, `any` 타입 금지
+- 색상: 디자인 토큰 값만 사용 (`#0B111B`, `#06B6D4`, `#EF4444`, `#60A5FA` 등)
+- **수익 = 빨강(#EF4444), 손실 = 파랑(#60A5FA)** — 한국 관례, 절대 변경 금지
+- 금액 표기: `fmt()` 함수 일관 사용 (1만 이상 "만", 1억 이상 "억")
+- 모든 데이터 컴포넌트: 5가지 상태 구현 (기본/로딩/에러/빈화면/오프라인)
+- 차트 컴포넌트: `dynamic import` + `ssr: false` 필수
+
+### 디자인 시스템 (→ `docs/roles/ux-designer.md` 상세)
+```
+배경:    #0B111B   서피스: #111827   카드: #1A2332
+포인트:  #06B6D4   수익:   #EF4444   손실: #60A5FA
+폰트:    Pretendard Variable (UI) + JetBrains Mono (숫자)
+```
 
 ## 확장 로드맵
 
