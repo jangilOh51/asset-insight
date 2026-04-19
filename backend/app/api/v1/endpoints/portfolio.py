@@ -3,7 +3,7 @@
 import asyncio
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,12 +12,14 @@ from app.models.broker_account import BrokerAccount
 from app.schemas.portfolio import HoldingItem, PortfolioRealtimeResponse, PortfolioSummary
 from app.services.broker_factory import UnifiedSummary, fetch_account_balance
 from app.services.kis.exchange_rate import get_usd_krw
+from app.services.snapshot_writer import write_snapshot
 
 router = APIRouter(prefix="/portfolio", tags=["portfolio"])
 
 
 @router.get("/realtime", response_model=PortfolioRealtimeResponse)
 async def get_portfolio_realtime(
+    background_tasks: BackgroundTasks,
     account_id: str | None = Query(default=None, description="특정 계좌 ID. 없으면 전체 활성 계좌 합산"),
     db: AsyncSession = Depends(get_db),
 ):
@@ -26,6 +28,7 @@ async def get_portfolio_realtime(
     - account_id 없음: 모든 활성 계좌 합산
     - account_id 있음: 해당 계좌만 조회
     - DB 계좌 없음: 환경변수 KIS 설정으로 fallback
+    - 조회 성공 시 BackgroundTask로 DB 스냅샷 자동 저장 (10분 쓰로틀)
     """
     usd_krw = await get_usd_krw()
 
@@ -41,6 +44,11 @@ async def get_portfolio_realtime(
     summaries: list[UnifiedSummary] = await asyncio.gather(
         *[fetch_account_balance(acc, usd_krw) for acc in accounts]
     )
+
+    # 조회 성공 후 백그라운드로 스냅샷 저장 (응답 지연 없음)
+    for acc, summary in zip(accounts, summaries):
+        background_tasks.add_task(write_snapshot, acc.account_no, summary, usd_krw)
+
     return _merge_summaries(summaries, usd_krw)
 
 
