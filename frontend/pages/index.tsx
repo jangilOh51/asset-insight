@@ -3,8 +3,10 @@ import useSWR from 'swr';
 import axios from 'axios';
 import AppLayout, { TopBar } from '@/components/layout/AppLayout';
 import PortfolioCard from '@/components/dashboard/PortfolioCard';
+import GoalProgress from '@/components/dashboard/GoalProgress';
+import { fetchActiveGoal } from '@/lib/api';
 import { fmt } from '@/lib/format';
-import type { AccountOut, PortfolioRealtimeResponse } from '@/types';
+import type { AccountOut, InvestmentGoal, PortfolioRealtimeResponse } from '@/types';
 
 const SectorTreemap = dynamic(
   () => import('@/components/dashboard/SectorTreemap'),
@@ -75,6 +77,8 @@ export default function Dashboard() {
     data: accounts = [],
     isLoading: accountsLoading,
   } = useSWR<AccountOut[]>('/api/v1/accounts', fetcher);
+
+  const { data: goal = null } = useSWR<InvestmentGoal | null>('/api/v1/goals/active', fetchActiveGoal);
 
   const summary  = portfolio?.summary;
   const holdings = portfolio?.holdings ?? [];
@@ -182,6 +186,9 @@ export default function Dashboard() {
             loading={isLoading}
           />
         </div>
+
+        {/* 목표 달성률 */}
+        <GoalProgress goal={goal} totalAsset={totalAsset} />
 
         {/* 섹터 현황 */}
         <div>

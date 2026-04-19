@@ -66,6 +66,12 @@ export interface PortfolioSummary {
   custom_asset_krw: number;
 }
 
+export interface InvestmentGoal {
+  id: number;
+  name: string;
+  target_amount_krw: number;
+}
+
 export interface IndexQuote {
   name: string;
   value: number | null;

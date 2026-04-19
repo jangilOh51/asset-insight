@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { AccountOut, AssetComposition, BenchmarkReturns, CustomAsset, MarketIndices, PortfolioRealtimeResponse, SnapshotSummary, TrendPoint } from "@/types";
+import type { AccountOut, AssetComposition, BenchmarkReturns, CustomAsset, InvestmentGoal, MarketIndices, PortfolioRealtimeResponse, SnapshotSummary, TrendPoint } from "@/types";
 
 const api = axios.create({ baseURL: "/api/v1" });
 
@@ -82,4 +82,18 @@ export async function deleteCustomAsset(id: string): Promise<void> {
 export async function fetchMarketIndices(): Promise<MarketIndices> {
   const { data } = await api.get("/market/indices");
   return data;
+}
+
+export async function fetchActiveGoal(): Promise<InvestmentGoal | null> {
+  const { data } = await api.get("/goals/active");
+  return data;
+}
+
+export async function upsertActiveGoal(body: { name: string; target_amount_krw: number }): Promise<InvestmentGoal> {
+  const { data } = await api.put("/goals/active", body);
+  return data;
+}
+
+export async function deleteActiveGoal(): Promise<void> {
+  await api.delete("/goals/active");
 }
