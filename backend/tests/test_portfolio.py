@@ -95,7 +95,7 @@ async def test_realtime_no_accounts_falls_back_to_legacy(client, mock_db):
 @pytest.mark.asyncio
 async def test_realtime_with_accounts_returns_aggregated(client, mock_db):
     acc = _make_account()
-    mock_db.execute.return_value = make_db_result(rows=[acc])
+    mock_db.execute.side_effect = [make_db_result(rows=[acc]), make_db_result(rows=[])]
     summary = _make_summary(acc.id)
 
     with (
@@ -117,7 +117,7 @@ async def test_realtime_with_accounts_returns_aggregated(client, mock_db):
 @pytest.mark.asyncio
 async def test_realtime_holdings_weight_calculated(client, mock_db):
     acc = _make_account()
-    mock_db.execute.return_value = make_db_result(rows=[acc])
+    mock_db.execute.side_effect = [make_db_result(rows=[acc]), make_db_result(rows=[])]
     summary = _make_summary(acc.id)
 
     with (
@@ -136,7 +136,7 @@ async def test_realtime_holdings_weight_calculated(client, mock_db):
 async def test_realtime_multiple_accounts_merged(client, mock_db):
     acc1 = _make_account(id="id-1", account_no="001-01")
     acc2 = _make_account(id="id-2", account_no="002-01")
-    mock_db.execute.return_value = make_db_result(rows=[acc1, acc2])
+    mock_db.execute.side_effect = [make_db_result(rows=[acc1, acc2]), make_db_result(rows=[])]
 
     summary1 = _make_summary("id-1")
     summary2 = UnifiedSummary(
@@ -167,7 +167,7 @@ async def test_realtime_multiple_accounts_merged(client, mock_db):
 @pytest.mark.asyncio
 async def test_realtime_filter_by_account_id(client, mock_db):
     acc = _make_account(id="specific-id", account_no="5012345678-01")
-    mock_db.execute.return_value = make_db_result(rows=[acc])
+    mock_db.execute.side_effect = [make_db_result(rows=[acc]), make_db_result(rows=[])]
     summary = _make_summary("specific-id")
 
     with (
@@ -182,7 +182,7 @@ async def test_realtime_filter_by_account_id(client, mock_db):
 @pytest.mark.asyncio
 async def test_realtime_return_pct_calculated(client, mock_db):
     acc = _make_account()
-    mock_db.execute.return_value = make_db_result(rows=[acc])
+    mock_db.execute.side_effect = [make_db_result(rows=[acc]), make_db_result(rows=[])]
     summary = _make_summary(acc.id)
 
     with (

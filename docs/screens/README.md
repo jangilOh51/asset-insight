@@ -15,6 +15,8 @@
 | [screen-04-history.md](screen-04-history.md) | 자산 히스토리 | `/history` | 1.0 |
 | [screen-05-accounts.md](screen-05-accounts.md) | 계좌 관리 | `/accounts` | 1.0 |
 | [screen-06-guide.md](screen-06-guide.md) | 사용 가이드 | `/guide` | 1.0 |
+| [screen-07-custom-assets.md](screen-07-custom-assets.md) | 수동 자산 관리 | `/assets` | 1.0 |
+| [screen-08-market.md](screen-08-market.md) | 시황 | `/market` | 1.0 |
 
 ---
 

@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { AccountOut, AssetComposition, BenchmarkReturns, PortfolioRealtimeResponse, SnapshotSummary, TrendPoint } from "@/types";
+import type { AccountOut, AssetComposition, BenchmarkReturns, CustomAsset, MarketIndices, PortfolioRealtimeResponse, SnapshotSummary, TrendPoint } from "@/types";
 
 const api = axios.create({ baseURL: "/api/v1" });
 
@@ -46,5 +46,40 @@ export async function fetchBenchmarkReturns(fromDate: string, toDate?: string): 
   const { data } = await api.get("/trend/benchmark/returns", {
     params: { from: fromDate, ...(toDate ? { to: toDate } : {}) },
   });
+  return data;
+}
+
+export async function fetchCustomAssets(): Promise<CustomAsset[]> {
+  const { data } = await api.get("/assets");
+  return data;
+}
+
+export async function createCustomAsset(body: {
+  name: string; asset_type: string; current_value_krw: number;
+  purchase_value_krw: number; memo: string;
+}): Promise<CustomAsset> {
+  const { data } = await api.post("/assets", body);
+  return data;
+}
+
+export async function updateCustomAsset(id: string, body: Partial<{
+  name: string; asset_type: string; current_value_krw: number;
+  purchase_value_krw: number; memo: string;
+}>): Promise<CustomAsset> {
+  const { data } = await api.patch(`/assets/${id}`, body);
+  return data;
+}
+
+export async function toggleCustomAsset(id: string): Promise<CustomAsset> {
+  const { data } = await api.patch(`/assets/${id}/toggle`);
+  return data;
+}
+
+export async function deleteCustomAsset(id: string): Promise<void> {
+  await api.delete(`/assets/${id}`);
+}
+
+export async function fetchMarketIndices(): Promise<MarketIndices> {
+  const { data } = await api.get("/market/indices");
   return data;
 }

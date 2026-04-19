@@ -48,6 +48,8 @@ PM은 모든 역할의 결과물을 검토한 후 최종 완료를 선언한다.
 | 자산 히스토리 (`/history`) | `docs/screens/screen-04-history.md` |
 | 계좌 관리 (`/accounts`) | `docs/screens/screen-05-accounts.md` |
 | 사용 가이드 (`/guide`) | `docs/screens/screen-06-guide.md` |
+| 수동 자산 관리 (`/assets`) | `docs/screens/screen-07-custom-assets.md` |
+| 시황 (`/market`) | `docs/screens/screen-08-market.md` |
 
 신규 화면 추가 시 → `screen-0N-{name}.md` 생성 + `docs/screens/README.md` 인덱스 업데이트
 

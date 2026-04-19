@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.models.broker_account import BrokerAccount
+from app.models.custom_asset import CustomAsset
 from app.schemas.portfolio import HoldingItem, PortfolioRealtimeResponse, PortfolioSummary
 from app.services.broker_factory import UnifiedSummary, fetch_account_balance
 from app.services.kis.exchange_rate import get_usd_krw
@@ -50,10 +51,17 @@ async def get_portfolio_realtime(
     for acc, summary in zip(accounts, summaries):
         background_tasks.add_task(write_snapshot, acc.account_no, summary, usd_krw)
 
-    return _merge_summaries(summaries, usd_krw)
+    # 활성 수동 자산 합산
+    custom_result = await db.execute(
+        select(CustomAsset).where(CustomAsset.is_active == True)
+    )
+    custom_assets = custom_result.scalars().all()
+    custom_total_krw = sum(float(a.current_value_krw) for a in custom_assets)
+
+    return _merge_summaries(summaries, usd_krw, custom_total_krw=custom_total_krw)
 
 
-def _merge_summaries(summaries: list[UnifiedSummary], usd_krw: float) -> PortfolioRealtimeResponse:
+def _merge_summaries(summaries: list[UnifiedSummary], usd_krw: float, custom_total_krw: float = 0.0) -> PortfolioRealtimeResponse:
     all_positions = []
     total_purchase = total_eval = total_pnl = total_cash = 0.0
 
@@ -64,7 +72,7 @@ def _merge_summaries(summaries: list[UnifiedSummary], usd_krw: float) -> Portfol
         total_pnl += s.profit_loss_krw
         total_cash += s.cash_krw
 
-    total_asset = total_eval + total_cash
+    total_asset = total_eval + total_cash + custom_total_krw
     return_pct = round(total_pnl / total_purchase * 100, 4) if total_purchase > 0 else 0.0
 
     holdings: list[HoldingItem] = []
@@ -89,6 +97,7 @@ def _merge_summaries(summaries: list[UnifiedSummary], usd_krw: float) -> Portfol
         return_pct=return_pct,
         cash_krw=round(total_cash),
         total_asset_krw=round(total_asset),
+        custom_asset_krw=round(custom_total_krw),
     )
     return PortfolioRealtimeResponse(
         summary=summary, holdings=holdings,

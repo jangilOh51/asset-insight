@@ -31,6 +31,7 @@ class PortfolioSummary(BaseModel):
     return_pct: float
     cash_krw: float
     total_asset_krw: float
+    custom_asset_krw: float = 0.0
 
 
 class PortfolioRealtimeResponse(BaseModel):

@@ -47,6 +47,17 @@ const navItems = [
     ),
   },
   {
+    href: '/assets',
+    label: '수동 자산',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/>
+        <circle cx="12" cy="12" r="2"/>
+        <path d="M6 12h.01M18 12h.01"/>
+      </svg>
+    ),
+  },
+  {
     href: '/accounts',
     label: '계좌 관리',
     icon: (

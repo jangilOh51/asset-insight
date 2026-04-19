@@ -63,6 +63,37 @@ export interface PortfolioSummary {
   return_pct: number;
   cash_krw: number;
   total_asset_krw: number;
+  custom_asset_krw: number;
+}
+
+export interface IndexQuote {
+  name: string;
+  value: number | null;
+  change: number | null;
+  change_pct: number | null;
+}
+
+export interface MarketIndices {
+  KOSPI: IndexQuote;
+  SP500: IndexQuote;
+  NASDAQ: IndexQuote;
+  USD_KRW: IndexQuote;
+}
+
+export type CustomAssetType = 'real_estate' | 'deposit' | 'crypto' | 'private_equity' | 'pension' | 'other';
+
+export interface CustomAsset {
+  id: string;
+  name: string;
+  asset_type: CustomAssetType;
+  asset_type_label: string;
+  emoji: string;
+  current_value_krw: number;
+  purchase_value_krw: number;
+  profit_loss_krw: number;
+  return_pct: number;
+  memo: string;
+  is_active: boolean;
 }
 
 export interface PortfolioRealtimeResponse {
