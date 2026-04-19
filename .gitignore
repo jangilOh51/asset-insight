@@ -21,6 +21,12 @@ out/
 postgres_data/
 redis_data/
 
+# TypeScript build cache
+frontend/tsconfig.tsbuildinfo
+
+# Claude internal
+.claude/
+
 # IDE
 .vscode/
 .idea/
