@@ -24,8 +24,10 @@ redis_data/
 # TypeScript build cache
 frontend/tsconfig.tsbuildinfo
 
-# Claude internal
-.claude/
+# Claude internal (세션/캐시는 제외, 공유 설정·훅은 추적)
+.claude/*
+!.claude/settings.json
+!.claude/hooks
 
 # IDE
 .vscode/
