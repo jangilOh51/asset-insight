@@ -1,8 +1,69 @@
-import { barHistoryData } from '@/lib/mockData';
+import useSWR from 'swr';
+import axios from 'axios';
+import type { SnapshotSummary } from '@/types';
 
-export default function AssetBarHistory() {
-  const max  = Math.max(...barHistoryData.map(d => d.value));
-  const last = barHistoryData[barHistoryData.length - 1].value;
+interface Props {
+  accountNo?: string;
+}
+
+const fetcher = (url: string) => axios.get(url).then(r => r.data);
+
+function fmt(n: number) {
+  if (n >= 100_000_000) return `${(n / 100_000_000).toFixed(1)}억`;
+  if (n >= 10_000)      return `${Math.round(n / 10_000)}만`;
+  return n.toLocaleString();
+}
+
+function toMonthlyBuckets(snapshots: SnapshotSummary[]): { date: string; value: number }[] {
+  const byMonth = new Map<string, number>();
+  for (const s of snapshots) {
+    const [y, m] = s.date.split('-');
+    const key = `${y.slice(2)}/${m}`;
+    // keep the latest value per month (snapshots are ordered desc)
+    if (!byMonth.has(key)) byMonth.set(key, s.total_asset_krw);
+  }
+  return Array.from(byMonth.entries())
+    .map(([date, value]) => ({ date, value }))
+    .reverse()
+    .slice(-6);
+}
+
+export default function AssetBarHistory({ accountNo }: Props) {
+  const { data: snapshots, isLoading } = useSWR<SnapshotSummary[]>(
+    accountNo ? `/api/v1/snapshot/summary/${accountNo}?limit=180` : null,
+    fetcher,
+  );
+
+  if (isLoading) {
+    return (
+      <div>
+        <p style={{ fontSize: 11, color: '#6B7280', marginBottom: 8, letterSpacing: '0.04em' }}>기간별 자산 변화</p>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 72 }}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} style={{ flex: 1, height: 40, background: '#1E2D3E', borderRadius: '3px 3px 0 0', opacity: 0.5 }}/>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const buckets = snapshots && snapshots.length > 0 ? toMonthlyBuckets(snapshots) : [];
+
+  if (buckets.length === 0) {
+    return (
+      <div>
+        <p style={{ fontSize: 11, color: '#6B7280', marginBottom: 8, letterSpacing: '0.04em' }}>기간별 자산 변화</p>
+        <div style={{ height: 72, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <p style={{ fontSize: 11, color: '#4B5563', textAlign: 'center', lineHeight: 1.5 }}>
+            스냅샷 데이터 수집 중<br/>
+            <span style={{ fontSize: 10, color: '#374151' }}>매일 18:00 자동 저장됩니다</span>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const max = Math.max(...buckets.map(d => d.value));
 
   return (
     <div>
@@ -10,12 +71,13 @@ export default function AssetBarHistory() {
         기간별 자산 변화
       </p>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 72 }}>
-        {barHistoryData.map((d, i) => {
-          const h = Math.round(d.value / max * 60);
-          const isLast = d.value === last;
+        {buckets.map((d, i) => {
+          const h = Math.max(8, Math.round(d.value / max * 60));
+          const isLast = i === buckets.length - 1;
           return (
             <div
               key={i}
+              title={`₩${fmt(d.value)}`}
               style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}
             >
               <div
@@ -29,8 +91,7 @@ export default function AssetBarHistory() {
                 onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
               />
               <div style={{
-                fontSize: 10,
-                fontFamily: 'JetBrains Mono, monospace',
+                fontSize: 10, fontFamily: 'JetBrains Mono, monospace',
                 color: isLast ? '#22D3EE' : '#6B7280',
               }}>
                 {d.date}

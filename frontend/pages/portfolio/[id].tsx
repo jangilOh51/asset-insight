@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import useSWR from 'swr';
+import axios from 'axios';
 import AppLayout from '@/components/layout/AppLayout';
 import HoldingsList from '@/components/portfolio/HoldingsList';
 import { fetchPortfolioRealtime } from '@/lib/api';
-import type { PortfolioRealtimeResponse } from '@/types';
+import type { AccountOut, PortfolioRealtimeResponse } from '@/types';
 
 const AssetDonutChart = dynamic(() => import('@/components/portfolio/AssetDonutChart'), {
   ssr: false,
@@ -12,8 +15,10 @@ const AssetDonutChart = dynamic(() => import('@/components/portfolio/AssetDonutC
 });
 const AssetBarHistory = dynamic(() => import('@/components/portfolio/AssetBarHistory'), {
   ssr: false,
-  loading: () => <div style={{ height: 88, background: '#1E2D3E', borderRadius: 8, animation: 'pulse 1.5s ease-in-out infinite' }}/>,
+  loading: () => <div style={{ height: 88, background: '#1E2D3E', borderRadius: 8 }}/>,
 });
+
+const fetcher = (url: string) => axios.get(url).then(r => r.data);
 
 function fmt(n: number) {
   if (n >= 100_000_000) return `₩${(n / 100_000_000).toFixed(2)}억`;
@@ -53,6 +58,23 @@ function RefreshIcon({ spinning }: { spinning: boolean }) {
 }
 
 export default function PortfolioDetail() {
+  const router = useRouter();
+  const { id } = router.query;
+  const accountId = typeof id === 'string' ? id : undefined;
+
+  const { data: account } = useSWR<AccountOut>(
+    accountId ? `/api/v1/accounts` : null,
+    fetcher,
+    {
+      // accounts API returns array; pick the right one
+      use: [],
+    }
+  );
+
+  // Fetch account list to find account_no
+  const { data: accounts = [] } = useSWR<AccountOut[]>('/api/v1/accounts', fetcher);
+  const currentAccount = accounts.find(a => a.id === accountId);
+
   const [data,        setData]        = useState<PortfolioRealtimeResponse | null>(null);
   const [isLoading,   setIsLoading]   = useState(true);
   const [isRefreshing,setIsRefreshing]= useState(false);
@@ -64,7 +86,7 @@ export default function PortfolioDetail() {
     else setIsRefreshing(true);
     setError(null);
     try {
-      const result = await fetchPortfolioRealtime();
+      const result = await fetchPortfolioRealtime(accountId);
       setData(result);
       setLastUpdated(new Date());
     } catch (e: unknown) {
@@ -73,7 +95,7 @@ export default function PortfolioDetail() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, []);
+  }, [accountId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -89,6 +111,10 @@ export default function PortfolioDetail() {
   const updatedLabel = lastUpdated
     ? lastUpdated.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     : '-';
+
+  const brokerLabel = currentAccount
+    ? `${currentAccount.broker} · ${currentAccount.broker_type}${currentAccount.is_mock ? ' (모의)' : ''}`
+    : '한국투자증권 · KIS';
 
   return (
     <AppLayout>
@@ -136,10 +162,7 @@ export default function PortfolioDetail() {
       {error ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 256, gap: 12 }}>
           <p style={{ color: '#EF4444', fontSize: 14 }}>{error}</p>
-          <button
-            onClick={() => load()}
-            style={{ color: '#22D3EE', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}
-          >
+          <button onClick={() => load()} style={{ color: '#22D3EE', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}>
             다시 시도
           </button>
         </div>
@@ -156,9 +179,10 @@ export default function PortfolioDetail() {
 
               {/* 헤더 */}
               <div>
-                <p style={{ fontSize: 11, color: '#6B7280', marginBottom: 6 }}>
-                  한국투자증권 · KIS
-                </p>
+                <p style={{ fontSize: 11, color: '#6B7280', marginBottom: 6 }}>{brokerLabel}</p>
+                {currentAccount?.account_name && (
+                  <p style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 8 }}>{currentAccount.account_name}</p>
+                )}
                 {isLoading ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <div style={{ height: 36, background: '#1E2D3E', borderRadius: 6, width: 160 }}/>
@@ -206,11 +230,7 @@ export default function PortfolioDetail() {
                   />
                   <StatRow label="예수금"     value={fmt(summary.cash_krw)}/>
                   <div style={{ paddingBottom: 4 }}>
-                    <StatRow
-                      label="USD/KRW"
-                      value={`₩${(data?.usd_krw ?? 0).toFixed(0)}`}
-                      valueColor="#6B7280"
-                    />
+                    <StatRow label="USD/KRW" value={`₩${(data?.usd_krw ?? 0).toFixed(0)}`} valueColor="#6B7280"/>
                   </div>
                 </div>
               )}
@@ -227,7 +247,7 @@ export default function PortfolioDetail() {
 
               {/* 기간별 자산 */}
               <div style={{ background: '#1A2332', border: '1px solid #2A3F55', borderRadius: 10, padding: '14px' }}>
-                <AssetBarHistory/>
+                <AssetBarHistory accountNo={currentAccount?.account_no}/>
               </div>
 
               {/* 보유 정보 */}

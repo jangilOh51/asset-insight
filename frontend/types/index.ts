@@ -70,3 +70,27 @@ export interface PortfolioRealtimeResponse {
   usd_krw: number;
   fetched_at: string;
 }
+
+export interface AccountOut {
+  id: string;
+  broker: string;
+  broker_type: string;
+  account_no: string;
+  account_name: string;
+  is_mock: boolean;
+  is_active: boolean;
+  is_verified: boolean;
+  display_order: number;
+  has_credentials: boolean;
+}
+
+export interface SnapshotSummary {
+  date: string;
+  purchase_amount_krw: number;
+  eval_amount_krw: number;
+  profit_loss_krw: number;
+  return_pct: number;
+  cash_krw: number;
+  total_asset_krw: number;
+  position_count: number;
+}

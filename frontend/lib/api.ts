@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { AssetComposition, PortfolioRealtimeResponse, TrendPoint } from "@/types";
+import type { AccountOut, AssetComposition, PortfolioRealtimeResponse, SnapshotSummary, TrendPoint } from "@/types";
 
 const api = axios.create({ baseURL: "/api/v1" });
 
@@ -27,7 +27,17 @@ export async function fetchOverseasBalance(exchange = "NASD") {
   return data;
 }
 
-export async function fetchPortfolioRealtime(): Promise<PortfolioRealtimeResponse> {
-  const { data } = await api.get("/portfolio/realtime");
+export async function fetchPortfolioRealtime(accountId?: string): Promise<PortfolioRealtimeResponse> {
+  const { data } = await api.get("/portfolio/realtime", accountId ? { params: { account_id: accountId } } : undefined);
+  return data;
+}
+
+export async function fetchAccounts(): Promise<AccountOut[]> {
+  const { data } = await api.get("/accounts");
+  return data;
+}
+
+export async function fetchSnapshotSummary(accountNo: string, limit = 180): Promise<SnapshotSummary[]> {
+  const { data } = await api.get(`/snapshot/summary/${accountNo}`, { params: { limit } });
   return data;
 }
