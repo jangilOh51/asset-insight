@@ -1,89 +1,91 @@
-import dynamic from 'next/dynamic';
 import { treemapData } from '@/lib/mockData';
 
-const ResponsiveContainer = dynamic(
-  () => import('recharts').then(m => m.ResponsiveContainer),
-  { ssr: false }
-);
-const Treemap = dynamic(
-  () => import('recharts').then(m => m.Treemap),
-  { ssr: false }
-);
-
-function changeColor(change: number): string {
-  if (change >= 3)   return '#991b1b';
-  if (change >= 1.5) return '#dc2626';
-  if (change >= 0)   return '#b45309';
-  if (change >= -1.5) return '#1d4ed8';
-  return '#1e40af';
+function changeColor(chg: number): string {
+  if (chg >= 3)    return '#EF4444';
+  if (chg >= 2)    return '#DC2626';
+  if (chg >= 1)    return '#B91C1C';
+  if (chg >  0.1)  return '#7F1D1D';
+  if (chg >= -0.1) return '#525252';
+  if (chg >= -1)   return '#166534';
+  if (chg >= -2)   return '#15803D';
+  if (chg >= -3)   return '#16A34A';
+  return '#22C55E';
 }
 
-function CustomContent(props: any) {
-  const { x, y, width, height, name, change } = props;
-  if (!width || !height) return null;
-  const color = changeColor(change ?? 0);
-  const showText = width > 50 && height > 30;
-  const showChange = width > 55 && height > 45;
-
-  return (
-    <g>
-      <rect
-        x={x + 1} y={y + 1}
-        width={width - 2} height={height - 2}
-        fill={color}
-        rx={3}
-      />
-      {showText && (
-        <text
-          x={x + width / 2}
-          y={y + height / 2 - (showChange ? 7 : 0)}
-          textAnchor="middle"
-          fill="white"
-          fontSize={Math.min(12, width / 6)}
-          fontWeight="600"
-        >
-          {name}
-        </text>
-      )}
-      {showChange && (
-        <text
-          x={x + width / 2}
-          y={y + height / 2 + 10}
-          textAnchor="middle"
-          fill="rgba(255,255,255,0.85)"
-          fontSize={Math.min(11, width / 7)}
-        >
-          {(change ?? 0) > 0 ? '+' : ''}{(change ?? 0).toFixed(1)}%
-        </text>
-      )}
-    </g>
-  );
+interface FlatItem {
+  name: string;
+  size: number;
+  change: number;
 }
 
-// Recharts Treemap needs flat data with 'root' parent
-function flattenForTreemap() {
-  return treemapData.map(sector => ({
-    name: sector.name,
-    children: sector.children.map(item => ({
+function flattenData(): FlatItem[] {
+  return treemapData.flatMap(sector =>
+    sector.children.map(item => ({
       name: item.name,
       size: item.size,
       change: item.change,
-    })),
-  }));
+    }))
+  );
 }
 
 export default function SectorTreemap() {
+  const items = flattenData().sort((a, b) => b.size - a.size);
+  const total = items.reduce((s, d) => s + d.size, 0);
+
   return (
-    <div className="w-full h-72 bg-gray-900 rounded-xl overflow-hidden">
-      <ResponsiveContainer width="100%" height="100%">
-        <Treemap
-          data={flattenForTreemap()}
-          dataKey="size"
-          aspectRatio={4 / 3}
-          stroke="none"
-          content={<CustomContent />}
-        />
-      </ResponsiveContainer>
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(6, 1fr)',
+        gridAutoRows: '58px',
+        gap: 3,
+        width: '100%',
+        background: '#0B111B',
+        borderRadius: 12,
+        overflow: 'hidden',
+      }}
+    >
+      {items.map((d, i) => {
+        const ratio = d.size / total;
+        const colSpan = ratio > 0.25 ? 3 : ratio > 0.12 ? 2 : 2;
+        const rowSpan = ratio > 0.18 ? 2 : 1;
+        const isProfit = d.change > 0.1;
+        const isLoss = d.change < -0.1;
+
+        return (
+          <div
+            key={i}
+            style={{
+              gridColumn: `span ${colSpan}`,
+              gridRow: `span ${rowSpan}`,
+              background: changeColor(d.change),
+              borderRadius: 4,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff',
+              padding: 4,
+              textAlign: 'center',
+              cursor: 'pointer',
+              transition: 'opacity 150ms',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
+            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+          >
+            <div style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.2 }}>{d.name}</div>
+            <div style={{
+              fontSize: 10,
+              fontFamily: 'JetBrains Mono, monospace',
+              marginTop: 3,
+              opacity: 0.9,
+              color: isProfit ? '#fca5a5' : isLoss ? '#86efac' : '#d1d5db',
+            }}>
+              {d.change > 0 ? '+' : ''}{d.change.toFixed(2)}%
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

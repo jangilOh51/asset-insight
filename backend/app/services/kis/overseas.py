@@ -92,11 +92,16 @@ async def get_overseas_balance(exchange: str = "NASD") -> OverseasSummary:
 
 
 async def get_all_overseas_balances(exchanges: list[str] | None = None) -> list[OverseasSummary]:
-    """설정된 모든 거래소 잔고 조회."""
+    """설정된 모든 거래소 잔고 조회. 개별 거래소 오류는 무시하고 계속 진행."""
+    import logging
+    logger = logging.getLogger(__name__)
     targets = exchanges or settings.kis_overseas_exchanges
     results = []
     for exchange in targets:
-        summary = await get_overseas_balance(exchange)
-        if summary.positions:
-            results.append(summary)
+        try:
+            summary = await get_overseas_balance(exchange)
+            if summary.positions:
+                results.append(summary)
+        except Exception as exc:
+            logger.warning("해외 잔고 조회 실패 [%s]: %s", exchange, exc)
     return results

@@ -11,6 +11,7 @@ from app.core.database import Base
 import app.models.portfolio              # noqa: F401
 import app.models.position_snapshot      # noqa: F401
 import app.models.account_daily_summary  # noqa: F401
+import app.models.broker_account         # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:

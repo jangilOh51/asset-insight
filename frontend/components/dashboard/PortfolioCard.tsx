@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import Link from 'next/link';
 import { Portfolio } from '@/lib/mockData';
 
@@ -5,66 +6,88 @@ interface Props {
   portfolio: Portfolio;
 }
 
-const brokerInitials: Record<string, string> = {
-  '삼성증권': '삼',
-  '키움증권': '키',
-  '대신증권': '대',
-  '미래에셋': '미',
-  '한국투자': '한',
+function Toggle({ on }: { on: boolean }) {
+  return (
+    <div style={{
+      width: 40, height: 22, borderRadius: 9999,
+      background: on ? '#06B6D4' : '#374151',
+      position: 'relative', flexShrink: 0,
+      transition: 'background 150ms',
+    }}>
+      <span style={{
+        position: 'absolute', top: 3, width: 16, height: 16,
+        background: '#fff', borderRadius: 9999,
+        transform: `translateX(${on ? 21 : 3}px)`,
+        transition: 'transform 150ms',
+        display: 'block',
+      }}/>
+    </div>
+  );
+}
+
+const BROKER_INITIALS: Record<string, string> = {
+  '삼성증권': '삼', '키움증권': '키', '대신증권': '대',
+  '미래에셋': '미', '한국투자': '한', 'KIS': 'K',
 };
 
 function fmt(n: number) {
   if (n === 0) return '₩0';
-  if (n >= 100000000) return `₩${(n / 100000000).toFixed(2)}억`;
-  if (n >= 10000) return `₩${Math.round(n / 10000).toLocaleString()}만`;
+  if (n >= 100_000_000) return `₩${(n / 100_000_000).toFixed(2)}억`;
+  if (n >= 10_000) return `₩${Math.round(n / 10_000).toLocaleString()}만`;
   return `₩${n.toLocaleString()}`;
 }
 
-export default function PortfolioCard({ portfolio }: Props) {
-  const isProfit = portfolio.returnPct > 0;
-  const isZero = portfolio.totalValueKrw === 0;
+export default function PortfolioCard({ portfolio: p }: Props) {
+  const [active, setActive] = useState(p.active);
+  const isProfit = p.returnPct > 0;
+  const isZero = p.totalValueKrw === 0;
+  const initial = BROKER_INITIALS[p.broker] ?? p.broker[0];
 
   return (
-    <Link href={`/portfolio/${portfolio.id}`}>
-      <div className="flex items-center gap-4 px-4 py-4 hover:bg-gray-800/50 transition-colors cursor-pointer border-b border-gray-800">
-        {/* Broker avatar */}
-        <div
-          className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
-          style={{ backgroundColor: portfolio.brokerColor }}
-        >
-          {brokerInitials[portfolio.broker] ?? portfolio.broker[0]}
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: '1px solid rgba(42,63,85,0.5)', transition: 'background 150ms', cursor: 'pointer' }}
+      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(31,41,55,0.5)')}
+      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+    >
+      <Link href={`/portfolio/${p.id}`} style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, textDecoration: 'none', minWidth: 0 }}>
+        {/* Avatar */}
+        <div style={{
+          width: 36, height: 36, borderRadius: 9999,
+          background: p.brokerColor, color: '#fff',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 13, fontWeight: 700, flexShrink: 0,
+        }}>
+          {initial}
         </div>
 
         {/* Info */}
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-white truncate">
-            {portfolio.broker} {portfolio.name}
-          </p>
-          <p className={`text-sm mt-0.5 ${isZero ? 'text-gray-500' : isProfit ? 'text-profit' : 'text-loss'}`}>
-            {fmt(portfolio.totalValueKrw)}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            fontSize: 13, fontWeight: 500, color: '#F9FAFB',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            lineHeight: '1.4',
+          }}>
+            <span style={{ color: '#D1D5DB' }}>{p.broker}</span>
+            <span style={{ color: '#9CA3AF', marginLeft: 4, fontSize: 12 }}>{p.name}</span>
+          </div>
+          <div style={{
+            fontSize: 13, marginTop: 1,
+            fontFamily: 'JetBrains Mono, monospace',
+            color: isZero ? '#6B7280' : (isProfit ? '#EF4444' : '#60A5FA'),
+          }}>
+            {fmt(p.totalValueKrw)}
             {!isZero && (
-              <span className="ml-2 text-xs">
-                ({isProfit ? '+' : ''}{portfolio.returnPct.toFixed(2)}%)
+              <span style={{ marginLeft: 6, fontSize: 11, opacity: 0.8 }}>
+                {isProfit ? '+' : ''}{p.returnPct.toFixed(2)}%
               </span>
             )}
-            {isZero && <span className="ml-1 text-xs">(0%)</span>}
-          </p>
+          </div>
         </div>
+      </Link>
 
-        {/* Toggle */}
-        <button
-          onClick={e => e.preventDefault()}
-          className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${
-            portfolio.active ? 'bg-cyan-500' : 'bg-gray-600'
-          }`}
-        >
-          <span
-            className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
-              portfolio.active ? 'translate-x-6' : 'translate-x-1'
-            }`}
-          />
-        </button>
+      {/* Toggle */}
+      <div onClick={e => { e.preventDefault(); setActive(v => !v); }}>
+        <Toggle on={active} />
       </div>
-    </Link>
+    </div>
   );
 }

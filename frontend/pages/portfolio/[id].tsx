@@ -1,139 +1,257 @@
-import { useRouter } from 'next/router';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import AppLayout from '@/components/layout/AppLayout';
 import HoldingsList from '@/components/portfolio/HoldingsList';
-import {
-  portfolios,
-  totalAsset,
-  totalProfit,
-  totalReturnPct,
-} from '@/lib/mockData';
+import { fetchPortfolioRealtime } from '@/lib/api';
+import type { PortfolioRealtimeResponse } from '@/types';
 
 const AssetDonutChart = dynamic(() => import('@/components/portfolio/AssetDonutChart'), {
   ssr: false,
-  loading: () => <div className="h-44 bg-gray-800 animate-pulse rounded-xl" />,
+  loading: () => <div style={{ height: 192, background: '#1E2D3E', borderRadius: 8, animation: 'pulse 1.5s ease-in-out infinite' }}/>,
 });
 const AssetBarHistory = dynamic(() => import('@/components/portfolio/AssetBarHistory'), {
   ssr: false,
-  loading: () => <div className="h-24 bg-gray-800 animate-pulse rounded-xl" />,
+  loading: () => <div style={{ height: 88, background: '#1E2D3E', borderRadius: 8, animation: 'pulse 1.5s ease-in-out infinite' }}/>,
 });
 
+function fmt(n: number) {
+  if (n >= 100_000_000) return `₩${(n / 100_000_000).toFixed(2)}억`;
+  if (n >= 10_000)      return `₩${Math.round(n / 10_000).toLocaleString()}만`;
+  return `₩${n.toLocaleString()}`;
+}
+
+function StatRow({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
+  return (
+    <div style={{
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      padding: '10px 0', borderBottom: '1px solid rgba(42,63,85,0.4)',
+    }}>
+      <span style={{ fontSize: 12, color: '#6B7280' }}>{label}</span>
+      <span style={{
+        fontFamily: 'JetBrains Mono, monospace',
+        fontSize: 12, fontWeight: 500,
+        color: valueColor ?? '#D1D5DB',
+      }}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function RefreshIcon({ spinning }: { spinning: boolean }) {
+  return (
+    <svg
+      width="14" height="14" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      style={spinning ? { animation: 'spin 1s linear infinite' } : undefined}
+    >
+      <path d="M23 4v6h-6"/>
+      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+    </svg>
+  );
+}
+
 export default function PortfolioDetail() {
-  const router = useRouter();
-  const { id } = router.query;
-  const portfolio = portfolios.find(p => p.id === id);
+  const [data,        setData]        = useState<PortfolioRealtimeResponse | null>(null);
+  const [isLoading,   setIsLoading]   = useState(true);
+  const [isRefreshing,setIsRefreshing]= useState(false);
+  const [error,       setError]       = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  if (!portfolio && id) {
-    return (
-      <AppLayout>
-        <div className="flex items-center justify-center h-64 text-gray-500">
-          포트폴리오를 찾을 수 없습니다.
-        </div>
-      </AppLayout>
-    );
-  }
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setIsLoading(true);
+    else setIsRefreshing(true);
+    setError(null);
+    try {
+      const result = await fetchPortfolioRealtime();
+      setData(result);
+      setLastUpdated(new Date());
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : '데이터를 불러올 수 없습니다.');
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
 
-  const evalAmount = portfolio?.totalValueKrw ?? totalAsset;
-  const purchaseAmount = Math.round(evalAmount / (1 + (portfolio?.returnPct ?? totalReturnPct) / 100));
-  const profitKrw = evalAmount - purchaseAmount;
-  const returnPct = portfolio?.returnPct ?? totalReturnPct;
-  const isProfit = returnPct >= 0;
+  useEffect(() => { load(); }, [load]);
+
+  const summary  = data?.summary;
+  const holdings = data?.holdings ?? [];
+  const isProfit = (summary?.return_pct ?? 0) >= 0;
+
+  const evalAmount  = summary?.total_asset_krw ?? 0;
+  const returnPct   = summary?.return_pct ?? 0;
+  const profitKrw   = summary?.profit_loss_krw ?? 0;
+  const purchaseKrw = summary?.purchase_amount_krw ?? 0;
+
+  const updatedLabel = lastUpdated
+    ? lastUpdated.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    : '-';
 
   return (
     <AppLayout>
-      {/* 뒤로 가기 */}
-      <div className="border-b border-gray-800 px-6 py-3">
-        <Link href="/" className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors w-fit">
-          <span>←</span>
-          <span>포트폴리오 전체보기</span>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
+      {/* TopBar */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '14px 24px', borderBottom: '1px solid #1f2937',
+        background: '#111827', position: 'sticky', top: 0, zIndex: 10,
+      }}>
+        <Link href="/" style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          fontSize: 13, color: '#22D3EE', textDecoration: 'none', fontWeight: 500,
+        }}>
+          <svg width="7" height="12" viewBox="0 0 7 12" fill="none">
+            <path d="M6 1L1 6l5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          포트폴리오
         </Link>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          {lastUpdated && (
+            <span style={{ fontSize: 11, color: '#6B7280', fontFamily: 'JetBrains Mono, monospace' }}>
+              {updatedLabel} 업데이트
+            </span>
+          )}
+          <button
+            onClick={() => load(true)}
+            disabled={isRefreshing}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              fontSize: 12, color: '#22D3EE',
+              background: 'rgba(6,182,212,0.08)', border: '1px solid rgba(6,182,212,0.2)',
+              borderRadius: 6, padding: '5px 10px', cursor: 'pointer',
+              opacity: isRefreshing ? 0.5 : 1,
+            }}
+          >
+            <RefreshIcon spinning={isRefreshing}/>
+            새로고침
+          </button>
+        </div>
       </div>
 
-      {/* 2컬럼 레이아웃 */}
-      <div className="flex h-[calc(100vh-100px)] overflow-hidden">
+      {error ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 256, gap: 12 }}>
+          <p style={{ color: '#EF4444', fontSize: 14 }}>{error}</p>
+          <button
+            onClick={() => load()}
+            style={{ color: '#22D3EE', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}
+          >
+            다시 시도
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', height: 'calc(100vh - 57px)', overflow: 'hidden' }}>
 
-        {/* ── 좌측 패널: 요약 + 차트 ── */}
-        <div className="w-80 flex-shrink-0 border-r border-gray-800 overflow-y-auto bg-gray-900/50">
-          <div className="p-5 space-y-5">
+          {/* ── 좌측 패널 ── */}
+          <div style={{
+            width: 272, flexShrink: 0,
+            borderRight: '1px solid #1f2937',
+            overflowY: 'auto', background: '#0B111B',
+          }}>
+            <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-            {/* 총 자산 */}
-            <div>
-              <p className="text-xs text-gray-500 mb-1">
-                {portfolio?.broker} {portfolio?.name ?? '전체 포트폴리오'}
-              </p>
-              <p className="text-2xl font-bold text-white">
-                ₩{evalAmount.toLocaleString()}
-              </p>
-              <div className="flex items-center gap-4 mt-1.5">
-                <div>
-                  <p className="text-xs text-gray-500">수익률</p>
-                  <p className={`text-sm font-semibold ${isProfit ? 'text-profit' : 'text-loss'}`}>
-                    {isProfit ? '+' : ''}{returnPct.toFixed(2)}%
-                  </p>
+              {/* 헤더 */}
+              <div>
+                <p style={{ fontSize: 11, color: '#6B7280', marginBottom: 6 }}>
+                  한국투자증권 · KIS
+                </p>
+                {isLoading ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ height: 36, background: '#1E2D3E', borderRadius: 6, width: 160 }}/>
+                    <div style={{ height: 18, background: '#1E2D3E', borderRadius: 6, width: 120 }}/>
+                  </div>
+                ) : (
+                  <>
+                    <p style={{
+                      fontFamily: 'JetBrains Mono, monospace',
+                      fontSize: 30, fontWeight: 700, color: '#F9FAFB',
+                      letterSpacing: '-0.025em', lineHeight: 1,
+                    }}>
+                      {fmt(evalAmount)}
+                    </p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                      <span style={{
+                        fontFamily: 'JetBrains Mono, monospace',
+                        fontSize: 14, fontWeight: 600,
+                        color: isProfit ? '#EF4444' : '#60A5FA',
+                      }}>
+                        {isProfit ? '+' : ''}{returnPct.toFixed(2)}%
+                      </span>
+                      <span style={{
+                        fontFamily: 'JetBrains Mono, monospace',
+                        fontSize: 11, padding: '2px 7px', borderRadius: 5,
+                        background: isProfit ? 'rgba(239,68,68,0.12)' : 'rgba(96,165,250,0.12)',
+                        color: isProfit ? '#EF4444' : '#60A5FA',
+                      }}>
+                        {isProfit ? '+' : ''}{fmt(Math.abs(profitKrw))}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* 수익 요약 */}
+              {!isLoading && summary && (
+                <div style={{ background: '#1A2332', border: '1px solid #2A3F55', borderRadius: 10, padding: '4px 14px' }}>
+                  <StatRow label="매입금액"   value={fmt(purchaseKrw)}/>
+                  <StatRow label="평가금액"   value={fmt(summary.eval_amount_krw)}/>
+                  <StatRow
+                    label="총 수익"
+                    value={`${isProfit ? '+' : ''}${fmt(Math.abs(profitKrw))}`}
+                    valueColor={isProfit ? '#EF4444' : '#60A5FA'}
+                  />
+                  <StatRow label="예수금"     value={fmt(summary.cash_krw)}/>
+                  <div style={{ paddingBottom: 4 }}>
+                    <StatRow
+                      label="USD/KRW"
+                      value={`₩${(data?.usd_krw ?? 0).toFixed(0)}`}
+                      valueColor="#6B7280"
+                    />
+                  </div>
                 </div>
+              )}
+
+              {/* 자산 구성 도넛 */}
+              {!isLoading && (
                 <div>
-                  <p className="text-xs text-gray-500">수익금</p>
-                  <p className={`text-sm font-semibold ${isProfit ? 'text-profit' : 'text-loss'}`}>
-                    {isProfit ? '+' : ''}₩{Math.abs(profitKrw).toLocaleString()}
+                  <p style={{ fontSize: 11, color: '#6B7280', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 12 }}>
+                    자산 구성
                   </p>
+                  <AssetDonutChart holdings={holdings} cashKrw={summary?.cash_krw ?? 0}/>
                 </div>
+              )}
+
+              {/* 기간별 자산 */}
+              <div style={{ background: '#1A2332', border: '1px solid #2A3F55', borderRadius: 10, padding: '14px' }}>
+                <AssetBarHistory/>
               </div>
+
+              {/* 보유 정보 */}
+              {!isLoading && (
+                <div style={{ background: '#1A2332', border: '1px solid #2A3F55', borderRadius: 10, padding: '4px 14px' }}>
+                  <StatRow label="총 종목수" value={`${holdings.length}종목`}/>
+                  <StatRow label="국내"      value={`${holdings.filter(h => h.market === 'KR').length}종목`}/>
+                  <StatRow label="해외"      value={`${holdings.filter(h => h.market === 'US').length}종목`}/>
+                  <div style={{ paddingBottom: 4 }}>
+                    <StatRow label="마지막 업데이트" value={updatedLabel}/>
+                  </div>
+                </div>
+              )}
+
             </div>
-
-            {/* 총 수익률 요약 */}
-            <div className="bg-gray-800/60 rounded-lg px-3 py-2.5 text-xs space-y-1">
-              <div className="flex justify-between text-gray-400">
-                <span>매입금액</span>
-                <span className="text-white">₩{purchaseAmount.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-gray-400">
-                <span>평가금액</span>
-                <span className="text-white">₩{evalAmount.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-gray-400 pt-1 border-t border-gray-700">
-                <span>총 수익</span>
-                <span className={isProfit ? 'text-profit' : 'text-loss'}>
-                  {isProfit ? '+' : ''}₩{Math.abs(profitKrw).toLocaleString()}
-                  <span className="ml-1">({isProfit ? '+' : ''}{returnPct.toFixed(2)}%)</span>
-                </span>
-              </div>
-            </div>
-
-            {/* 도넛 차트: 자산 구성 */}
-            <div>
-              <p className="text-xs text-gray-500 mb-3">자산 구성</p>
-              <AssetDonutChart />
-            </div>
-
-            {/* 기간별 자산 바 차트 */}
-            <AssetBarHistory />
-
-            {/* 보유 기간 */}
-            <div className="bg-gray-800/60 rounded-lg px-3 py-2.5 text-xs text-gray-400 space-y-1.5">
-              <div className="flex justify-between">
-                <span>첫 매수일</span>
-                <span className="text-white">2021.11.15</span>
-              </div>
-              <div className="flex justify-between">
-                <span>보유 기간</span>
-                <span className="text-white">약 2년 5개월</span>
-              </div>
-              <div className="flex justify-between">
-                <span>마지막 업데이트</span>
-                <span className="text-white">2026.04.19 18:00</span>
-              </div>
-            </div>
-
           </div>
-        </div>
 
-        {/* ── 우측 패널: 종목 목록 ── */}
-        <div className="flex-1 overflow-hidden flex flex-col">
-          <HoldingsList />
-        </div>
+          {/* ── 우측: 종목 목록 ── */}
+          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <HoldingsList holdings={holdings} isLoading={isLoading}/>
+          </div>
 
-      </div>
+        </div>
+      )}
     </AppLayout>
   );
 }

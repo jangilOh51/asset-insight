@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { AssetComposition, TrendPoint } from "@/types";
+import type { AssetComposition, PortfolioRealtimeResponse, TrendPoint } from "@/types";
 
 const api = axios.create({ baseURL: "/api/v1" });
 
@@ -24,5 +24,10 @@ export async function fetchDomesticBalance() {
 
 export async function fetchOverseasBalance(exchange = "NASD") {
   const { data } = await api.get("/realtime/balance/overseas", { params: { exchange } });
+  return data;
+}
+
+export async function fetchPortfolioRealtime(): Promise<PortfolioRealtimeResponse> {
+  const { data } = await api.get("/portfolio/realtime");
   return data;
 }

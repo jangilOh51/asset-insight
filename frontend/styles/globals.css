@@ -1,19 +1,32 @@
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 html, body {
-  background-color: #111827;
-  color: #f9fafb;
-  font-family: 'Pretendard', -apple-system, sans-serif;
+  background-color: #0B111B;
+  color: #F9FAFB;
+  font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
+               'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* 수익: 빨강, 손실: 파랑 (한국 증권 관례) */
-.text-profit { color: #ef4444; }
-.text-loss   { color: #60a5fa; }
-.text-neutral { color: #9ca3af; }
+.text-profit  { color: #EF4444; }
+.text-loss    { color: #60A5FA; }
+.text-neutral { color: #9CA3AF; }
+
+/* 숫자 전용 모노 폰트 */
+.font-mono {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
 
 /* 스크롤바 */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #1a2332; }
-::-webkit-scrollbar-thumb { background: #2a3f55; border-radius: 3px; }
+::-webkit-scrollbar-track { background: #1A2332; }
+::-webkit-scrollbar-thumb { background: #2A3F55; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #374151; }

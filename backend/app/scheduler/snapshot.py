@@ -17,19 +17,35 @@ logger = logging.getLogger(__name__)
 
 
 async def save_daily_snapshot() -> None:
-    """KIS API 잔고 조회 → position_snapshot + account_daily_summary 저장."""
-    if not settings.kis_account_no:
-        logger.warning("KIS_ACCOUNT_NO 미설정, 스냅샷 건너뜀")
+    """DB에 등록된 모든 활성 계좌를 순회하며 스냅샷 저장."""
+    from app.models.broker_account import BrokerAccount
+    from sqlalchemy import select
+
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(BrokerAccount).where(BrokerAccount.is_active == True)  # noqa: E712
+        )
+        accounts = result.scalars().all()
+
+    if not accounts:
+        logger.warning("등록된 활성 계좌 없음 — 스냅샷 건너뜀")
         return
 
     now = datetime.now(tz=timezone.utc)
-    account_no = settings.kis_account_no
-    logger.info("일별 스냅샷 시작 account=%s time=%s", account_no, now)
+    usd_krw = await get_usd_krw()
+    logger.info("일별 스냅샷 시작: %d개 계좌", len(accounts))
 
+    for account in accounts:
+        await _snapshot_one(account.account_no, now, usd_krw)
+
+
+async def _snapshot_one(account_no: str, now: datetime, usd_krw: float) -> None:
+    """단일 계좌 스냅샷 저장."""
+    settings.kis_account_no = account_no
+    logger.info("스냅샷 처리: %s", account_no)
     try:
         domestic = await get_domestic_balance()
         overseas_list = await get_all_overseas_balances()
-        usd_krw = await get_usd_krw()
 
         async with AsyncSessionLocal() as session:
             await _delete_existing(session, account_no, now.date())
@@ -37,11 +53,9 @@ async def save_daily_snapshot() -> None:
             await _save_summary(session, account_no, now, domestic, overseas_list, usd_krw, len(positions))
             await session.commit()
 
-        logger.info("스냅샷 저장 완료: %d 종목", len(positions))
-
+        logger.info("스냅샷 완료: %s %d종목", account_no, len(positions))
     except Exception:
-        logger.exception("스냅샷 저장 실패")
-        raise
+        logger.exception("스냅샷 실패: %s", account_no)
 
 
 async def _delete_existing(session, account_no: str, target_date: date) -> None:

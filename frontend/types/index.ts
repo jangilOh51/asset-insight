@@ -36,3 +36,37 @@ export interface AssetComposition {
   value_krw: number;
   weight_pct: number;
 }
+
+export interface HoldingItem {
+  symbol: string;
+  name: string;
+  market: 'KR' | 'US';
+  exchange: string;
+  currency: 'KRW' | 'USD';
+  quantity: number;
+  avg_cost: number;
+  current_price: number;
+  avg_cost_native: number;
+  current_price_native: number;
+  purchase_amount_krw: number;
+  eval_amount_krw: number;
+  profit_loss_krw: number;
+  return_pct: number;
+  weight_pct: number;
+}
+
+export interface PortfolioSummary {
+  purchase_amount_krw: number;
+  eval_amount_krw: number;
+  profit_loss_krw: number;
+  return_pct: number;
+  cash_krw: number;
+  total_asset_krw: number;
+}
+
+export interface PortfolioRealtimeResponse {
+  summary: PortfolioSummary;
+  holdings: HoldingItem[];
+  usd_krw: number;
+  fetched_at: string;
+}
