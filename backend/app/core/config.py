@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     # Scheduler
     snapshot_cron: str = "0 18 * * 1-5"   # 평일 18시 (장 마감 후)
 
+    # AI
+    anthropic_api_key: str = ""
+
     # App
     secret_key: str = "change-me-in-production"
     cors_origins: list[str] = ["http://localhost:3000"]

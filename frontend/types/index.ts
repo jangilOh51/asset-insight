@@ -143,3 +143,56 @@ export interface BenchmarkReturns {
   SP500: BenchmarkPoint[];
   NASDAQ: BenchmarkPoint[];
 }
+
+export interface MonthlyReport {
+  year: number;
+  month: number;
+  content: string;
+  cached: boolean;
+}
+
+export type TaxAssetType = 'stock_kr' | 'stock_us' | 'etf_kr';
+
+export interface TaxSimulationRequest {
+  symbol: string;
+  asset_type: TaxAssetType;
+  quantity: number;
+  avg_cost_krw: number;
+  current_price_krw: number;
+}
+
+export interface TaxSimulationResult {
+  symbol: string;
+  asset_type: string;
+  quantity: number;
+  sell_amount_krw: number;
+  purchase_amount_krw: number;
+  profit_loss_krw: number;
+  securities_tax_krw: number;
+  income_tax_krw: number;
+  total_tax_krw: number;
+  net_profit_krw: number;
+  effective_tax_rate_pct: number;
+  notes: string[];
+}
+
+export type RiskLevel = 'conservative' | 'moderate' | 'aggressive';
+
+export interface StrategyReport {
+  risk_level: RiskLevel;
+  horizon_years: number;
+  content: string;
+  cached: boolean;
+}
+
+export type TaxEventCategory = 'report' | 'payment' | 'deadline' | 'strategy' | 'check';
+
+export interface TaxEvent {
+  id: string;
+  title: string;
+  description: string;
+  month: number;
+  day: number | null;
+  category: TaxEventCategory;
+  is_annual: boolean;
+}

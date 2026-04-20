@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { AccountOut, AssetComposition, BenchmarkReturns, CustomAsset, InvestmentGoal, MarketIndices, PortfolioRealtimeResponse, SnapshotSummary, TrendPoint } from "@/types";
+import type { AccountOut, AssetComposition, BenchmarkReturns, CustomAsset, InvestmentGoal, MarketIndices, MonthlyReport, PortfolioRealtimeResponse, RiskLevel, SnapshotSummary, StrategyReport, TaxEvent, TaxSimulationRequest, TaxSimulationResult, TrendPoint } from "@/types";
 
 const api = axios.create({ baseURL: "/api/v1" });
 
@@ -96,4 +96,24 @@ export async function upsertActiveGoal(body: { name: string; target_amount_krw: 
 
 export async function deleteActiveGoal(): Promise<void> {
   await api.delete("/goals/active");
+}
+
+export async function fetchMonthlyReport(year: number, month: number): Promise<MonthlyReport> {
+  const { data } = await api.post("/report/monthly", { year, month });
+  return data;
+}
+
+export async function fetchStrategyReport(riskLevel: RiskLevel, horizonYears: number): Promise<StrategyReport> {
+  const { data } = await api.post("/report/strategy", { risk_level: riskLevel, horizon_years: horizonYears });
+  return data;
+}
+
+export async function simulateTax(req: TaxSimulationRequest): Promise<TaxSimulationResult> {
+  const { data } = await api.post("/tax/simulate", req);
+  return data;
+}
+
+export async function fetchTaxCalendar(year: number): Promise<TaxEvent[]> {
+  const { data } = await api.get("/tax/calendar", { params: { year } });
+  return data;
 }
