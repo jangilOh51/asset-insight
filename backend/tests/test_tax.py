@@ -151,3 +151,75 @@ async def test_simulate_api_zero_quantity(client, mock_db):
         "current_price_krw": 80000,
     })
     assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_simulate_api_etf_kr_loss_no_tax(client, mock_db):
+    """국내 ETF 손실 시 API 응답에서도 세금 0 확인."""
+    resp = await client.post("/api/v1/tax/simulate", json={
+        "symbol": "069500",
+        "asset_type": "etf_kr",
+        "quantity": 100,
+        "avg_cost_krw": 35000,
+        "current_price_krw": 30000,
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["income_tax_krw"] == 0.0
+    assert data["total_tax_krw"] == 0.0
+    assert data["profit_loss_krw"] == -500_000.0
+
+
+@pytest.mark.asyncio
+async def test_simulate_api_stock_us_below_deduction(client, mock_db):
+    """해외 주식 양도차익이 공제 한도 이하이면 소득세 0."""
+    resp = await client.post("/api/v1/tax/simulate", json={
+        "symbol": "AAPL",
+        "asset_type": "stock_us",
+        "quantity": 1,
+        "avg_cost_krw": 1_000_000,
+        "current_price_krw": 3_000_000,
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["income_tax_krw"] == 0.0
+    assert data["securities_tax_krw"] == 0.0
+
+
+@pytest.mark.asyncio
+async def test_simulate_api_all_response_fields(client, mock_db):
+    """응답 JSON에 필수 필드가 모두 존재한다."""
+    resp = await client.post("/api/v1/tax/simulate", json={
+        "symbol": "005930",
+        "asset_type": "stock_kr",
+        "quantity": 10,
+        "avg_cost_krw": 70000,
+        "current_price_krw": 75000,
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    required_keys = {
+        "symbol", "asset_type", "quantity",
+        "sell_amount_krw", "purchase_amount_krw", "profit_loss_krw",
+        "securities_tax_krw", "income_tax_krw", "total_tax_krw",
+        "net_profit_krw", "effective_tax_rate_pct", "notes",
+    }
+    assert required_keys.issubset(data.keys())
+    assert isinstance(data["notes"], list)
+
+
+@pytest.mark.asyncio
+async def test_simulate_api_break_even(client, mock_db):
+    """손익분기점(매수가=현재가) → 증권거래세만 발생, 양도소득세 0."""
+    resp = await client.post("/api/v1/tax/simulate", json={
+        "symbol": "005930",
+        "asset_type": "stock_kr",
+        "quantity": 10,
+        "avg_cost_krw": 75000,
+        "current_price_krw": 75000,
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["profit_loss_krw"] == 0.0
+    assert data["income_tax_krw"] == 0.0
+    assert data["securities_tax_krw"] > 0  # 증권거래세는 발생

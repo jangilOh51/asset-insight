@@ -21,6 +21,7 @@ class HoldingItem(BaseModel):
     profit_loss_krw: float
     return_pct: float
     day_change_pct: float = 0.0
+    day_change_source: str = "live"  # "live" | "snapshot"
     weight_pct: float
 
 

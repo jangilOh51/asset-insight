@@ -55,7 +55,12 @@ async def test_list_brokers(client):
 
 @pytest.mark.asyncio
 async def test_list_accounts_empty(client):
-    resp = await client.get("/api/v1/accounts")
+    with patch("app.core.config.settings") as mock_settings:
+        mock_settings.kis_account_no = ""
+        mock_settings.kis_app_key = ""
+        mock_settings.kiwoom_account_no = ""
+        mock_settings.kiwoom_app_key = ""
+        resp = await client.get("/api/v1/accounts")
     assert resp.status_code == 200
     assert resp.json() == []
 
@@ -65,7 +70,12 @@ async def test_list_accounts_returns_items(client, mock_db):
     acc = _make_account()
     mock_db.execute.return_value = make_db_result(rows=[acc])
 
-    resp = await client.get("/api/v1/accounts")
+    with patch("app.core.config.settings") as mock_settings:
+        mock_settings.kis_account_no = ""
+        mock_settings.kis_app_key = ""
+        mock_settings.kiwoom_account_no = ""
+        mock_settings.kiwoom_app_key = ""
+        resp = await client.get("/api/v1/accounts")
     assert resp.status_code == 200
     data = resp.json()
     assert len(data) == 1
@@ -174,6 +184,18 @@ async def test_update_account_not_found(client, mock_db):
     assert resp.status_code == 404
 
 
+# ── PATCH /accounts/{id} — app_secret 변경도 is_verified 리셋 ─────────────────
+
+@pytest.mark.asyncio
+async def test_update_account_secret_resets_verified(client, mock_db):
+    acc = _make_account(is_verified=True)
+    mock_db.get.return_value = acc
+
+    resp = await client.patch(f"/api/v1/accounts/{acc.id}", json={"app_secret": "newsecret"})
+    assert resp.status_code == 200
+    assert acc.is_verified is False
+
+
 # ── POST /accounts/{id}/verify ────────────────────────────────────────────────
 
 @pytest.mark.asyncio
@@ -197,6 +219,13 @@ async def test_verify_account_no_key(client, mock_db):
     assert resp.status_code == 400
 
 
+@pytest.mark.asyncio
+async def test_verify_account_not_found(client, mock_db):
+    mock_db.get.return_value = None
+    resp = await client.post("/api/v1/accounts/nonexistent/verify")
+    assert resp.status_code == 404
+
+
 # ── PATCH /accounts/{id}/toggle ───────────────────────────────────────────────
 
 @pytest.mark.asyncio
@@ -217,6 +246,13 @@ async def test_toggle_account_activate(client, mock_db):
     resp = await client.patch(f"/api/v1/accounts/{acc.id}/toggle")
     assert resp.status_code == 200
     assert acc.is_active is True
+
+
+@pytest.mark.asyncio
+async def test_toggle_account_not_found(client, mock_db):
+    mock_db.get.return_value = None
+    resp = await client.patch("/api/v1/accounts/nonexistent/toggle")
+    assert resp.status_code == 404
 
 
 # ── POST /accounts/{id}/reorder ───────────────────────────────────────────────
@@ -247,6 +283,52 @@ async def test_reorder_account_not_found(client, mock_db):
     ]
     resp = await client.post("/api/v1/accounts/nonexistent/reorder?direction=up")
     assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_reorder_account_down(client, mock_db):
+    acc1 = _make_account(id="id-1", account_no="001-01", display_order=0)
+    acc2 = _make_account(id="id-2", account_no="002-01", display_order=1)
+
+    mock_db.execute.side_effect = [
+        make_db_result(rows=[acc1, acc2]),
+        make_db_result(rows=[acc1, acc2]),
+    ]
+
+    resp = await client.post("/api/v1/accounts/id-1/reorder?direction=down")
+    assert resp.status_code == 200
+    assert acc1.display_order == 1
+    assert acc2.display_order == 0
+
+
+@pytest.mark.asyncio
+async def test_reorder_account_already_at_top_no_op(client, mock_db):
+    """이미 첫 번째 계좌를 up으로 이동 → 순서 변경 없음."""
+    acc = _make_account(id="id-1", account_no="001-01", display_order=0)
+
+    mock_db.execute.side_effect = [
+        make_db_result(rows=[acc]),
+        make_db_result(rows=[acc]),
+    ]
+
+    resp = await client.post("/api/v1/accounts/id-1/reorder?direction=up")
+    assert resp.status_code == 200
+    assert acc.display_order == 0  # 변경 없음
+
+
+@pytest.mark.asyncio
+async def test_reorder_account_already_at_bottom_no_op(client, mock_db):
+    """이미 마지막 계좌를 down으로 이동 → 순서 변경 없음."""
+    acc = _make_account(id="id-1", account_no="001-01", display_order=0)
+
+    mock_db.execute.side_effect = [
+        make_db_result(rows=[acc]),
+        make_db_result(rows=[acc]),
+    ]
+
+    resp = await client.post("/api/v1/accounts/id-1/reorder?direction=down")
+    assert resp.status_code == 200
+    assert acc.display_order == 0  # 변경 없음
 
 
 # ── DELETE /accounts/{id} ─────────────────────────────────────────────────────

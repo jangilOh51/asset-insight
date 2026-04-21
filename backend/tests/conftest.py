@@ -21,6 +21,8 @@ def make_db_result(rows=None, scalar=None):
     result.scalars.return_value.first.return_value = (rows or [None])[0]
     result.scalar_one_or_none.return_value = scalar
     result.scalar.return_value = scalar
+    result.all.return_value = rows or []
+    result.fetchall.return_value = rows or []
     return result
 
 

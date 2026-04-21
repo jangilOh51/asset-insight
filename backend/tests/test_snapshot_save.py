@@ -278,7 +278,7 @@ async def test_realtime_registers_background_save(client, mock_db):
         app_key="key", app_secret="secret",
         is_mock=True, is_active=True, is_verified=True, display_order=0,
     )
-    mock_db.execute.side_effect = [make_db_result(rows=[acc]), make_db_result(rows=[])]
+    mock_db.execute.side_effect = [make_db_result(rows=[acc]), make_db_result(rows=[]), make_db_result(rows=[])]
     summary = _summary(acc.id)
 
     with (

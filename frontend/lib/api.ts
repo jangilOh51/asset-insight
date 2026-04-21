@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { AccountOut, AssetComposition, BenchmarkReturns, CustomAsset, InvestmentGoal, MarketIndices, MonthlyReport, PortfolioRealtimeResponse, RiskLevel, SnapshotSummary, StrategyReport, TaxEvent, TaxSimulationRequest, TaxSimulationResult, TrendPoint } from "@/types";
+import type { AccountOut, AssetComposition, BenchmarkReturns, CustomAsset, InvestmentGoal, MarketIndices, MonthlyReport, NotificationListResponse, PortfolioRealtimeResponse, RiskLevel, SnapshotSummary, StockReport, StrategyReport, TaxEvent, TaxSimulationRequest, TaxSimulationResult, TrendPoint } from "@/types";
 
 const api = axios.create({ baseURL: "/api/v1" });
 
@@ -116,4 +116,27 @@ export async function simulateTax(req: TaxSimulationRequest): Promise<TaxSimulat
 export async function fetchTaxCalendar(year: number): Promise<TaxEvent[]> {
   const { data } = await api.get("/tax/calendar", { params: { year } });
   return data;
+}
+
+export async function fetchStockReport(symbol: string): Promise<StockReport> {
+  const { data } = await api.post(`/report/stock/${encodeURIComponent(symbol)}`);
+  return data;
+}
+
+export async function fetchNotifications(): Promise<NotificationListResponse> {
+  const { data } = await api.get("/notifications");
+  return data;
+}
+
+export async function fetchUnreadCount(): Promise<number> {
+  const { data } = await api.get("/notifications/unread-count");
+  return data.unread_count;
+}
+
+export async function markAllNotificationsRead(): Promise<void> {
+  await api.post("/notifications/read-all");
+}
+
+export async function deleteAllNotifications(): Promise<void> {
+  await api.delete("/notifications");
 }

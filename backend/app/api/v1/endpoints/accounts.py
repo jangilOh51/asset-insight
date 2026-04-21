@@ -82,22 +82,37 @@ async def list_accounts(db: AsyncSession = Depends(get_db)):
     rows = result.scalars().all()
     accounts = [_to_out(r) for r in rows]
 
-    # 환경변수에 KIS 계좌가 설정되어 있고 DB에 없으면 synthetic 항목 추가
-    if settings.kis_account_no and settings.kis_app_key:
-        db_nos = {r.account_no for r in rows}
-        if settings.kis_account_no not in db_nos:
-            accounts.append(AccountOut(
-                id="env-kis",
-                broker="한국투자증권",
-                broker_type="KIS",
-                account_no=settings.kis_account_no,
-                account_name="KIS 환경변수 계좌",
-                is_mock=settings.kis_mock,
-                is_active=True,
-                is_verified=True,
-                display_order=999,
-                has_credentials=True,
-            ))
+    db_nos = {r.account_no for r in rows}
+
+    # 환경변수 KIS 계좌 synthetic 추가
+    if settings.kis_account_no and settings.kis_app_key and settings.kis_account_no not in db_nos:
+        accounts.append(AccountOut(
+            id="env-kis",
+            broker="한국투자증권",
+            broker_type="KIS",
+            account_no=settings.kis_account_no,
+            account_name="KIS 환경변수 계좌",
+            is_mock=settings.kis_mock,
+            is_active=True,
+            is_verified=True,
+            display_order=998,
+            has_credentials=True,
+        ))
+
+    # 환경변수 키움 계좌 synthetic 추가
+    if settings.kiwoom_account_no and settings.kiwoom_app_key and settings.kiwoom_account_no not in db_nos:
+        accounts.append(AccountOut(
+            id="env-kiwoom",
+            broker="키움증권",
+            broker_type="KIWOOM",
+            account_no=settings.kiwoom_account_no,
+            account_name="키움 환경변수 계좌",
+            is_mock=settings.kiwoom_mock,
+            is_active=True,
+            is_verified=True,
+            display_order=999,
+            has_credentials=True,
+        ))
 
     return accounts
 

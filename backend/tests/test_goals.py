@@ -115,6 +115,26 @@ async def test_upsert_goal_empty_name(client, mock_db):
     assert resp.status_code == 422
 
 
+@pytest.mark.asyncio
+async def test_upsert_goal_name_too_long(client, mock_db):
+    """목표명 100자 초과 → 422."""
+    resp = await client.put("/api/v1/goals/active", json={
+        "name": "a" * 101,
+        "target_amount_krw": 100000000,
+    })
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_upsert_goal_negative_amount(client, mock_db):
+    """목표 금액 음수 → 422."""
+    resp = await client.put("/api/v1/goals/active", json={
+        "name": "목표",
+        "target_amount_krw": -1000,
+    })
+    assert resp.status_code == 422
+
+
 # ── DELETE /goals/active ──────────────────────────────────────────────────────
 
 @pytest.mark.asyncio

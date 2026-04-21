@@ -1,15 +1,17 @@
 """통합 포트폴리오 실시간 조회 API."""
 
 import asyncio
+from collections import defaultdict
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.models.broker_account import BrokerAccount
 from app.models.custom_asset import CustomAsset
+from app.models.position_snapshot import PositionSnapshot
 from app.schemas.portfolio import HoldingItem, PortfolioRealtimeResponse, PortfolioSummary
 from app.services.broker_factory import UnifiedSummary, fetch_account_balance
 from app.services.kis.exchange_rate import get_usd_krw
@@ -58,7 +60,13 @@ async def get_portfolio_realtime(
     custom_assets = custom_result.scalars().all()
     custom_total_krw = sum(float(a.current_value_krw) for a in custom_assets)
 
-    return _merge_summaries(summaries, usd_krw, custom_total_krw=custom_total_krw)
+    response = _merge_summaries(summaries, usd_krw, custom_total_krw=custom_total_krw)
+
+    # day_change_pct가 0인 종목은 스냅샷 fallback으로 계산
+    account_nos = [a.account_no for a in accounts]
+    await _fill_snapshot_day_change(response.holdings, account_nos, db)
+
+    return response
 
 
 def _merge_summaries(summaries: list[UnifiedSummary], usd_krw: float, custom_total_krw: float = 0.0) -> PortfolioRealtimeResponse:
@@ -158,3 +166,61 @@ async def _legacy_realtime(usd_krw: float) -> PortfolioRealtimeResponse:
         holdings=holdings, usd_krw=usd_krw,
         fetched_at=datetime.now(timezone.utc).isoformat(),
     )
+
+
+async def _fill_snapshot_day_change(
+    holdings: list[HoldingItem],
+    account_nos: list[str],
+    db: AsyncSession,
+) -> None:
+    """day_change_pct == 0.0인 종목에 대해 최근 2개 스냅샷 가격 차로 등락률을 보정한다.
+
+    KIS 모의투자처럼 prdy_ctrt를 반환하지 않는 환경의 fallback.
+    스냅샷이 2개 이상 없으면 해당 종목은 건너뛴다.
+    """
+    zero_symbols = [h.symbol for h in holdings if h.day_change_pct == 0.0]
+    if not zero_symbols or not account_nos:
+        return
+
+    # 각 symbol의 최근 2개 스냅샷 조회 (row_number window function)
+    rn = func.row_number().over(
+        partition_by=[PositionSnapshot.symbol],
+        order_by=PositionSnapshot.time.desc(),
+    ).label("rn")
+
+    subq = (
+        select(
+            PositionSnapshot.symbol,
+            PositionSnapshot.current_price,
+            PositionSnapshot.time,
+            rn,
+        )
+        .where(
+            PositionSnapshot.account_no.in_(account_nos),
+            PositionSnapshot.symbol.in_(zero_symbols),
+        )
+        .subquery()
+    )
+
+    result = await db.execute(
+        select(subq.c.symbol, subq.c.current_price, subq.c.rn)
+        .where(subq.c.rn <= 2)
+        .order_by(subq.c.symbol, subq.c.rn)
+    )
+    rows = result.all()
+
+    # symbol → [최신가, 전일가]
+    prices: dict[str, list[float]] = defaultdict(list)
+    for row in rows:
+        prices[row.symbol].append(float(row.current_price))
+
+    for h in holdings:
+        if h.day_change_pct != 0.0:
+            continue
+        pts = prices.get(h.symbol, [])
+        if len(pts) < 2:
+            continue
+        today_p, prev_p = pts[0], pts[1]
+        if prev_p > 0:
+            h.day_change_pct = round((today_p - prev_p) / prev_p * 100, 2)
+            h.day_change_source = "snapshot"

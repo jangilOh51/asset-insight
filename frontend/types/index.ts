@@ -53,6 +53,7 @@ export interface HoldingItem {
   profit_loss_krw: number;
   return_pct: number;
   day_change_pct: number;
+  day_change_source?: 'live' | 'snapshot';
   weight_pct: number;
 }
 
@@ -195,4 +196,27 @@ export interface TaxEvent {
   day: number | null;
   category: TaxEventCategory;
   is_annual: boolean;
+}
+
+export interface StockReport {
+  symbol: string;
+  name: string;
+  content: string;
+  cached: boolean;
+}
+
+export type NotificationType = "goal_achieved" | "goal_milestone" | "high_return" | "high_loss";
+
+export interface NotificationItem {
+  id: number;
+  type: NotificationType;
+  title: string;
+  message: string;
+  is_read: boolean;
+  created_at: string;
+}
+
+export interface NotificationListResponse {
+  items: NotificationItem[];
+  unread_count: number;
 }

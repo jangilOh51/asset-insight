@@ -2,6 +2,8 @@
 
 커버 엔드포인트:
   POST /api/v1/report/monthly
+  POST /api/v1/report/strategy
+  POST /api/v1/report/stock/{symbol}
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -382,3 +384,100 @@ async def test_generate_strategy_report_calls_claude():
     assert call_kwargs["model"] == "claude-opus-4-7"
     assert "중립적" in call_kwargs["messages"][0]["content"]
     assert "3년" in call_kwargs["messages"][0]["content"]
+
+
+# ── POST /report/stock/{symbol} ───────────────────────────────────────────────
+
+MOCK_STOCK_CONTENT = """## 삼성전자 (005930) 심층 분석
+## 1. 기업 개요
+반도체, 스마트폰, 가전을 아우르는 글로벌 테크 기업입니다.
+## 2. 재무 현황
+현재가 75,000원, 수익률 +7.14%입니다.
+## 3. 리스크 요인
+메모리 사이클 하강 리스크가 존재합니다.
+## 4. 매매 전략
+목표가 82,000원, 손절가 68,000원을 권장합니다."""
+
+
+@pytest.mark.asyncio
+async def test_create_stock_report_success(client, mock_db):
+    """캐시 미스 → Claude 호출 → 결과 반환."""
+    from tests.conftest import make_db_result
+
+    mock_redis = AsyncMock()
+    mock_redis.get.return_value = None
+    mock_redis.setex = AsyncMock()
+
+    mock_db.execute.return_value = make_db_result(rows=[_make_mock_account()])
+
+    with (
+        patch("app.api.v1.endpoints.report.get_redis", return_value=mock_redis),
+        patch("app.api.v1.endpoints.report._fetch_portfolio",
+              return_value=(MOCK_HOLDINGS, MOCK_SUMMARY)),
+        patch("app.api.v1.endpoints.report.generate_stock_report",
+              new=AsyncMock(return_value=MOCK_STOCK_CONTENT)),
+    ):
+        resp = await client.post("/api/v1/report/stock/005930")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["symbol"] == "005930"
+    assert data["name"] == "삼성전자"
+    assert data["content"] == MOCK_STOCK_CONTENT
+    assert data["cached"] is False
+    mock_redis.setex.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_create_stock_report_cache_hit(client, mock_db):
+    """캐시 히트 → Claude 미호출."""
+    mock_redis = AsyncMock()
+    mock_redis.get.return_value = MOCK_STOCK_CONTENT
+
+    with (
+        patch("app.api.v1.endpoints.report.get_redis", return_value=mock_redis),
+        patch("app.api.v1.endpoints.report._fetch_portfolio",
+              return_value=(MOCK_HOLDINGS, MOCK_SUMMARY)),
+        patch("app.api.v1.endpoints.report.generate_stock_report") as mock_gen,
+    ):
+        resp = await client.post("/api/v1/report/stock/005930")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["cached"] is True
+    mock_gen.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_create_stock_report_symbol_not_found(client, mock_db):
+    """보유하지 않은 종목 요청 → 404."""
+    mock_redis = AsyncMock()
+    mock_redis.get.return_value = None
+
+    with (
+        patch("app.api.v1.endpoints.report.get_redis", return_value=mock_redis),
+        patch("app.api.v1.endpoints.report._fetch_portfolio",
+              return_value=(MOCK_HOLDINGS, MOCK_SUMMARY)),
+    ):
+        resp = await client.post("/api/v1/report/stock/TSLA")
+
+    assert resp.status_code == 404
+    assert "TSLA" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_create_stock_report_missing_api_key(client, mock_db):
+    """API 키 없음 → 503."""
+    mock_redis = AsyncMock()
+    mock_redis.get.return_value = None
+
+    with (
+        patch("app.api.v1.endpoints.report.get_redis", return_value=mock_redis),
+        patch("app.api.v1.endpoints.report._fetch_portfolio",
+              return_value=(MOCK_HOLDINGS, MOCK_SUMMARY)),
+        patch("app.api.v1.endpoints.report.generate_stock_report",
+              new=AsyncMock(side_effect=ValueError("ANTHROPIC_API_KEY가 설정되지 않았습니다."))),
+    ):
+        resp = await client.post("/api/v1/report/stock/005930")
+
+    assert resp.status_code == 503

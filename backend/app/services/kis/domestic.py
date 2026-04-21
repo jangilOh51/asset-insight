@@ -1,10 +1,16 @@
 """국내 주식 잔고 조회 및 파싱."""
 
+import asyncio
+import logging
 from dataclasses import dataclass, field
 from typing import Any
 
+import httpx
+
 from app.core.config import settings
 from app.services.kis.client import get_kis_client
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -86,7 +92,7 @@ async def get_domestic_balance() -> DomesticSummary:
             eval_amount_krw=_parse_float(item.get("evlu_amt")),
             profit_loss_krw=_parse_float(item.get("evlu_pfls_amt")),
             return_pct=_parse_float(item.get("evlu_pfls_rt")),
-            day_change_pct=_parse_float(item.get("prdy_ctrt")),
+            day_change_pct=_parse_float(item.get("fltt_rt") or item.get("prdy_ctrt")),
         ))
 
     # output2는 단일 객체 또는 리스트
@@ -102,4 +108,36 @@ async def get_domestic_balance() -> DomesticSummary:
         total_asset_krw=_parse_float(out2.get("tot_evlu_amt")),
         positions=positions,
     )
+
+    # 잔고 API가 등락률을 제공하지 않으면 현재가 조회로 보완
+    await _fill_day_change(positions, client)
+
     return summary
+
+
+async def _fill_day_change(positions: list[DomesticPosition], client) -> None:
+    """fltt_rt가 0인 종목을 inquire-price API로 보정한다 (순차 호출, 속도 제한 회피)."""
+    targets = [p for p in positions if p.day_change_pct == 0.0]
+    for p in targets:
+        for attempt in range(2):
+            try:
+                raw = await client.request(
+                    "GET",
+                    "/uapi/domestic-stock/v1/quotations/inquire-price",
+                    tr_id="FHKST01010100",
+                    params={"FID_COND_MRKT_DIV_CODE": "J", "FID_INPUT_ISCD": p.symbol},
+                )
+                ctrt = raw.get("output", {}).get("prdy_ctrt")
+                if ctrt is not None:
+                    p.day_change_pct = _parse_float(ctrt)
+                break
+            except httpx.HTTPStatusError as e:
+                if attempt == 0 and e.response.status_code == 500:
+                    await asyncio.sleep(0.5)  # EGW00201 속도 제한 → 0.5s 후 재시도
+                else:
+                    logger.debug("inquire-price 실패 [%s]: %s", p.symbol, e)
+                    break
+            except Exception as e:
+                logger.debug("inquire-price 실패 [%s]: %s", p.symbol, e)
+                break
+        await asyncio.sleep(0.2)  # KIS API EGW00201(초당 거래건수 초과) 회피

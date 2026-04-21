@@ -129,6 +129,35 @@ async def test_get_positions_market_filter(client):
     assert resp.status_code == 200
 
 
+@pytest.mark.asyncio
+async def test_get_positions_market_filter_lowercase(client, mock_db):
+    """market 파라미터 소문자 입력도 대문자로 정규화되어 처리된다."""
+    row = _make_position_row()
+    mock_db.execute.return_value = make_db_result(rows=[row])
+
+    resp = await client.get(
+        "/api/v1/snapshot/positions/5012345678-01?date=2026-04-19&market=kr"
+    )
+    assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_get_summary_all_response_fields(client, mock_db):
+    """응답 JSON에 필수 8개 필드가 모두 존재한다."""
+    row = _make_summary_row()
+    mock_db.execute.return_value = make_db_result(rows=[row])
+
+    resp = await client.get("/api/v1/snapshot/summary/5012345678-01")
+    assert resp.status_code == 200
+    item = resp.json()[0]
+    required_keys = {
+        "date", "purchase_amount_krw", "eval_amount_krw",
+        "profit_loss_krw", "return_pct", "cash_krw",
+        "total_asset_krw", "position_count",
+    }
+    assert required_keys.issubset(item.keys())
+
+
 # ── POST /snapshot/run ────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio

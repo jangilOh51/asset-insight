@@ -10,14 +10,13 @@ from sqlalchemy import Date as SADate
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from app.models.account_daily_summary import AccountDailySummary
 from app.models.position_snapshot import AssetType, EXCHANGE_TO_MARKET, PositionSnapshot
 from app.services.broker_factory import UnifiedSummary
 
 logger = logging.getLogger(__name__)
-
-THROTTLE_TTL = 600  # 10분 — 실시간 엔드포인트 저장 최소 간격
 
 _MARKET_TO_ASSET: dict[str, AssetType] = {
     "KR": AssetType.stock_kr,
@@ -42,7 +41,7 @@ async def _set_throttle(account_no: str) -> None:
     try:
         from app.core.redis import get_redis
         redis = await get_redis()
-        await redis.setex(f"snapshot:throttle:{account_no}", THROTTLE_TTL, "1")
+        await redis.setex(f"snapshot:throttle:{account_no}", settings.realtime_throttle_seconds, "1")
     except Exception:
         pass
 

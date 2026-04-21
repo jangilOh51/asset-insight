@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { ReactNode } from 'react';
+import NotificationBell from './NotificationBell';
 
 const navItems = [
   {
@@ -207,6 +208,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
         {/* Bottom Links */}
         <div style={{ padding: 8, borderTop: '1px solid #1f2937', display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <NotificationBell />
           <Link
             href="/guide"
             style={{

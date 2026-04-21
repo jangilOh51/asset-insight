@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.endpoints.accounts import router as accounts_router
+from app.api.v1.endpoints.notifications import router as notifications_router
 from app.api.v1.endpoints.assets import router as assets_router
 from app.api.v1.endpoints.goals import router as goals_router
 from app.api.v1.endpoints.market import router as market_router
@@ -23,4 +24,5 @@ api_router.include_router(snapshot_router)
 api_router.include_router(tax_router)
 api_router.include_router(tax_calendar_router)
 api_router.include_router(trend_router)
+api_router.include_router(notifications_router)
 api_router.include_router(realtime_router)

@@ -164,13 +164,19 @@ async def _fetch_kis(account: BrokerAccount, usd_krw: float) -> UnifiedSummary:
 
 
 async def _fetch_kiwoom(account: BrokerAccount) -> UnifiedSummary:
+    from app.core.config import settings
     from app.services.kiwoom.client import KiwoomClient
     from app.services.kiwoom.balance import get_kiwoom_balance
 
+    # 계좌별 API 키 우선, 없으면 전역 환경변수 사용
+    app_key    = account.app_key    or settings.kiwoom_app_key
+    app_secret = account.app_secret or settings.kiwoom_app_secret
+    is_mock    = account.is_mock if account.app_key else settings.kiwoom_mock
+
     client = KiwoomClient(
-        app_key=account.app_key,
-        app_secret=account.app_secret,
-        is_mock=account.is_mock,
+        app_key=app_key,
+        app_secret=app_secret,
+        is_mock=is_mock,
     )
     try:
         summary = await get_kiwoom_balance(client, account.account_no)
@@ -188,6 +194,7 @@ async def _fetch_kiwoom(account: BrokerAccount) -> UnifiedSummary:
             eval_amount_krw=p.eval_amount_krw,
             profit_loss_krw=p.profit_loss_krw,
             return_pct=p.return_pct,
+            day_change_pct=p.day_change_pct,
         )
         for p in summary.positions
     ]

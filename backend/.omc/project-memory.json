@@ -1,0 +1,145 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1776779413986,
+  "projectRoot": "G:\\WK\\asset-insight\\backend",
+  "techStack": {
+    "languages": [
+      {
+        "name": "Python",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "pyproject.toml"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "fastapi",
+        "version": null,
+        "category": "backend"
+      },
+      {
+        "name": "pytest",
+        "version": null,
+        "category": "testing"
+      }
+    ],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": "pytest",
+    "lintCommand": "ruff check",
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": "snake_case",
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "app",
+      "tests"
+    ],
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "alembic": {
+      "path": "alembic",
+      "purpose": null,
+      "fileCount": 2,
+      "lastAccessed": 1776779413957,
+      "keyFiles": [
+        "env.py",
+        "script.py.mako"
+      ]
+    },
+    "app": {
+      "path": "app",
+      "purpose": "Application code",
+      "fileCount": 2,
+      "lastAccessed": 1776779413958,
+      "keyFiles": [
+        "main.py",
+        "__init__.py"
+      ]
+    },
+    "tests": {
+      "path": "tests",
+      "purpose": "Test files",
+      "fileCount": 16,
+      "lastAccessed": 1776779413959,
+      "keyFiles": [
+        "conftest.py",
+        "test_accounts.py",
+        "test_assets.py",
+        "test_goals.py",
+        "test_kiwoom.py"
+      ]
+    },
+    "app\\api": {
+      "path": "app\\api",
+      "purpose": "API routes",
+      "fileCount": 1,
+      "lastAccessed": 1776779413960,
+      "keyFiles": [
+        "__init__.py"
+      ]
+    },
+    "app\\models": {
+      "path": "app\\models",
+      "purpose": "Data models",
+      "fileCount": 8,
+      "lastAccessed": 1776779413961,
+      "keyFiles": [
+        "account_daily_summary.py",
+        "broker_account.py",
+        "custom_asset.py"
+      ]
+    },
+    "app\\schemas": {
+      "path": "app\\schemas",
+      "purpose": "Schema definitions",
+      "fileCount": 4,
+      "lastAccessed": 1776779413961,
+      "keyFiles": [
+        "custom_asset.py",
+        "goal.py",
+        "portfolio.py"
+      ]
+    },
+    "app\\services": {
+      "path": "app\\services",
+      "purpose": "Business logic services",
+      "fileCount": 4,
+      "lastAccessed": 1776779413961,
+      "keyFiles": [
+        "broker_factory.py",
+        "notification.py",
+        "snapshot_writer.py"
+      ]
+    },
+    "app\\utils": {
+      "path": "app\\utils",
+      "purpose": "Utility functions",
+      "fileCount": 1,
+      "lastAccessed": 1776779413962,
+      "keyFiles": [
+        "__init__.py"
+      ]
+    }
+  },
+  "hotPaths": [],
+  "userDirectives": []
+}
